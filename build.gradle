@@ -1,0 +1,32 @@
+plugins {
+	id 'java'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+group = 'ua.com.minersstudios'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.mozilla:rhino:1.7.14'
+}
+
+ext {
+	description = 'Bullshit core sweatly provided to you by MinersStudios.'
+	minecraftVersion = '1.20.1'
+	version = '1.0'
+	author = 'MinersStudios'
+	website = 'minersstudios.github.io'
+}
+
+processResources {
+	expand(project.properties) { escapeBackslash = true }
+}
+
+task compileJavaScript(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.mozilla.javascript.tools.shell.Main'
+    args = ['-opt', '-1', 'Core.js', 'BullshitCore.js']
+}
