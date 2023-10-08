@@ -10,6 +10,7 @@ public class Bootstrap {
 			new ScriptEngineManager().getEngineByName("nashorn").eval(script);
 		} catch (Exception e) {
 			e.printStackTrace();
+			System.exit(1);
 		}
 	}
 }
