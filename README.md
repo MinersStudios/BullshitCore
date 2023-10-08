@@ -13,4 +13,4 @@ java Bootstrap
 
 that's all!
 
-_Note:_ Compiled bootstrap will work with JVM that uses the same or higher version of Java than it was compiled with.
+_Note:_ Compiled bootstrap won't work with the JVM that uses the lower Java version than it was compiled with.
