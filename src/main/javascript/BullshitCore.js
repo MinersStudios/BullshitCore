@@ -1,6 +1,6 @@
-import { Core } from './Core.js'
+load("src/main/javascript/Core.js")
 
-export function BullshitCore() {
+function BullshitCore() {
 	Core.call(this)
 }
 BullshitCore.prototype = Object.create(Core.prototype, {
@@ -12,6 +12,9 @@ BullshitCore.prototype = Object.create(Core.prototype, {
 	}
 })
 
+/**
+ * @override
+ */
 BullshitCore.prototype.getName = function() {
 	return "BullshitCore"
 }
