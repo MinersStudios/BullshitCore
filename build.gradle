@@ -1,0 +1,19 @@
+plugins {
+	id 'java'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'Bootstrap'
+    }
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.openjdk.nashorn:nashorn-core:15.4'
+}
