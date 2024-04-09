@@ -1,5 +1,0 @@
-var frame = new javax.swing.JFrame()
-frame.setSize(640, 480)
-frame.setTitle("BullshitCore")
-frame.setDefaultCloseOperation(javax.swing.JFrame.EXIT_ON_CLOSE)
-frame.setVisible(true)
