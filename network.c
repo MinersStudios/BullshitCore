@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <stdio.h>
@@ -8,7 +9,7 @@
 #include "global_macros.h"
 #include "network.h"
 
-#define ADDRESS INADDR_ANY
+#define ADDRESS "0.0.0.0"
 #define PORT 25565
 #define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
 #define MINECRAFT_VERSION "1.20.4"
@@ -22,9 +23,20 @@ int main(void)
 	if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &(const int){ 1 }, sizeof(int)) == -1))
 		PERROR_AND_GOTO_CLOSEFD("setsockopt", server)
 	{
-		const struct sockaddr_in server_address = { AF_INET, htons(PORT), (struct in_addr){ htonl(ADDRESS) } };
+		struct in_addr address;
+		{
+			int ret = inet_pton(AF_INET, ADDRESS, &address);
+			if (!ret)
+			{
+				fputs("An invalid server address was specified.\n", stderr);
+				return EXIT_FAILURE;
+			}
+			else if (unlikely(ret == -1))
+				PERROR_AND_GOTO_CLOSEFD("inet_pton", server)
+		}
+		const struct sockaddr_in server_address = { AF_INET, htons(PORT), address };
 		struct sockaddr server_address_data;
-		memcpy(&server_address_data, &server_address, sizeof server_address);
+		memcpy(&server_address_data, &server_address, sizeof server_address_data);
 		if (unlikely(bind(server_endpoint, &server_address_data, sizeof server_address_data) == -1))
 			PERROR_AND_GOTO_CLOSEFD("bind", server)
 	}
