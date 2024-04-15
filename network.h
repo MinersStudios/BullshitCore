@@ -25,21 +25,21 @@ typedef struct
 	VarInt size;
 	uint8_t *contents;
 } String;
-enum TAG_Type
+enum TAGType
 {
-	TAG_Type_End,
-	TAG_Type_Byte,
-	TAG_Type_Short,
-	TAG_Type_Int,
-	TAG_Type_Long,
-	TAG_Type_Float,
-	TAG_Type_Double,
-	TAG_Type_Byte_Array,
-	TAG_Type_String,
-	TAG_Type_List,
-	TAG_Type_Compound,
-	TAG_Type_Int_Array,
-	TAG_Type_Long_Array
+	TAGType_End,
+	TAGType_Byte,
+	TAGType_Short,
+	TAGType_Int,
+	TAGType_Long,
+	TAGType_Float,
+	TAGType_Double,
+	TAGType_ByteArray,
+	TAGType_String,
+	TAGType_List,
+	TAGType_Compound,
+	TAGType_IntArray,
+	TAGType_LongArray
 };
 typedef Byte TAG_Byte;
 typedef Short TAG_Short;
@@ -108,15 +108,18 @@ typedef struct
 {
 	VarInt length;
 	VarInt packet_identifier;
-	Byte data[];
-} Packet;
+} UncompressedPacketHeader;
 typedef struct
 {
 	VarInt packet_length;
 	VarInt data_length;
 	VarInt packet_identifier;
-	Byte data[];
-} CompressedPacket;
+} CompressedPacketHeader;
+union PacketHeader
+{
+	UncompressedPacketHeader uncompressed;
+	CompressedPacketHeader compressed;
+};
 enum State
 {
 	State_Status = 1,
@@ -126,10 +129,92 @@ enum State
 };
 typedef struct
 {
+	union PacketHeader header;
 	VarInt protocol_version;
 	String server_address;
 	UShort server_port;
 	VarInt next_state;
-} HandshakePacketData;
+} PacketServerboundHandshake;
+typedef struct
+{
+	union PacketHeader header;
+	String JSON_response;
+} PacketClientboundStatusResponse;
+typedef struct
+{
+	union PacketHeader header;
+	Long payload;
+} PacketClientboundStatusPingResponse;
+typedef struct
+{
+	union PacketHeader header;
+} PacketServerboundStatusRequest;
+typedef struct
+{
+	union PacketHeader header;
+	Long payload;
+} PacketServerboundStatusPingRequest;
+typedef struct
+{
+	union PacketHeader header;
+	JSONTextComponent reason;
+} PacketClientboundLoginDisconnect;
+typedef struct
+{
+	union PacketHeader header;
+	String server_identifier;
+	VarInt public_key_length;
+	Byte *public_key;
+	VarInt verify_token_length;
+	Byte *verify_token;
+} PacketClientboundLoginEncryptionRequest;
+typedef struct
+{
+	union PacketHeader header;
+	UUID UUID;
+	String username;
+	VarInt properties_count;
+	String property_name;
+	String property_value;
+	Boolean sign;
+	String signature;
+} PacketClientboundLoginSuccess;
+typedef struct
+{
+	union PacketHeader header;
+	VarInt threshold;
+} PacketClientboundLoginSetCompression;
+typedef struct
+{
+	union PacketHeader header;
+	VarInt message_identifier;
+	Identifier channel;
+	Byte *data;
+} PacketClientboundLoginPluginRequest;
+typedef struct
+{
+	union PacketHeader header;
+	String player_username;
+	UUID player_UUID;
+} PacketServerboundLoginStart;
+typedef struct
+{
+	union PacketHeader header;
+	VarInt shared_secret_length;
+	Byte *shared_secret;
+	VarInt verify_token_length;
+	Byte *verify_token;
+} PacketServerboundLoginEncryptionResponse;
+typedef struct
+{
+	union PacketHeader header;
+	VarInt message_identifier;
+	Boolean successful;
+	Byte *data;
+} PacketServerboundLoginPluginResponse;
+typedef struct
+{
+	union PacketHeader header;
+} PacketServerboundLoginAcknowledged;
 
 #endif
