@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,11 +10,21 @@
 #include "global_macros.h"
 #include "network.h"
 
-#define ADDRESS "0.0.0.0"
-#define PORT 25565
-#define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
 #define MINECRAFT_VERSION "1.20.4"
 #define PROTOCOL_VERSION 765
+#define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
+
+// config
+#define ADDRESS "0.0.0.0"
+#define PORT 25565
+#define MAX_PLAYERS 15
+
+void *main_routine(void *p_player)
+{
+	int player = *(int *)p_player;
+	free(p_player);
+	return NULL;
+}
 
 // TODO: Add support for IPv6
 int main(void)
@@ -40,17 +51,36 @@ int main(void)
 		if (unlikely(bind(server_endpoint, &server_address_data, sizeof server_address_data) == -1))
 			PERROR_AND_GOTO_CLOSEFD("bind", server)
 	}
-	if (unlikely(listen(server_endpoint, 1) == -1))
+	if (unlikely(listen(server_endpoint, SOMAXCONN) == -1))
 		PERROR_AND_GOTO_CLOSEFD("listen", server)
 	{
-		int client_endpoint = accept(server_endpoint, NULL, NULL);
-		if (unlikely(client_endpoint == -1))
-			PERROR_AND_GOTO_CLOSEFD("accept", server)
+		int client_endpoint;
+		{
+			int_least16_t thread_counter = 0;
+			while (true)
+			{
+				client_endpoint = accept(server_endpoint, NULL, NULL);
+				if (unlikely(client_endpoint == -1))
+					PERROR_AND_GOTO_CLOSEFD("accept", server)
+				if (thread_counter == INT_LEAST16_MAX)
+					if (unlikely(close(client_endpoint) == -1))
+						PERROR_AND_GOTO_CLOSEFD("close", server)
+				int * const p_client_endpoint = malloc(sizeof client_endpoint);
+				if (unlikely(!p_client_endpoint))
+					PERROR_AND_GOTO_CLOSEFD("malloc", client)
+				*p_client_endpoint = client_endpoint;
+				pthread_t thread;
+				pthread_create(&thread, NULL, main_routine, p_client_endpoint);
+				++thread_counter;
+			}
+		}
 		if (unlikely(close(client_endpoint) == -1))
 			PERROR_AND_GOTO_CLOSEFD("close", server)
+		if (unlikely(close(server_endpoint) == -1)) PERROR_AND_EXIT("close")
+		return EXIT_SUCCESS;
+clientclosefd:
+		if (unlikely(close(client_endpoint) == -1)) perror("close");
 	}
-	if (unlikely(close(server_endpoint) == -1)) PERROR_AND_EXIT("close")
-	return EXIT_SUCCESS;
 serverclosefd:
 	if (unlikely(close(server_endpoint) == -1)) perror("close");
 	return EXIT_FAILURE;
