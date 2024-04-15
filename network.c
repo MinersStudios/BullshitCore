@@ -17,7 +17,7 @@
 // config
 #define ADDRESS "0.0.0.0"
 #define PORT 25565
-#define MAX_PLAYERS 15
+#define MAX_PLAYERS 15 // cannot be larger than 32767
 
 void *main_routine(void *p_player)
 {
@@ -62,9 +62,12 @@ int main(void)
 				client_endpoint = accept(server_endpoint, NULL, NULL);
 				if (unlikely(client_endpoint == -1))
 					PERROR_AND_GOTO_CLOSEFD("accept", server)
-				if (thread_counter == INT_LEAST16_MAX)
+				if (thread_counter == MAX_PLAYERS)
+				{
 					if (unlikely(close(client_endpoint) == -1))
 						PERROR_AND_GOTO_CLOSEFD("close", server)
+					continue;
+				}
 				int * const p_client_endpoint = malloc(sizeof client_endpoint);
 				if (unlikely(!p_client_endpoint))
 					PERROR_AND_GOTO_CLOSEFD("malloc", client)
