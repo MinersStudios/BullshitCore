@@ -108,18 +108,13 @@ typedef struct
 {
 	VarInt length;
 	VarInt packet_identifier;
-} UncompressedPacketHeader;
+} PacketHeader;
 typedef struct
 {
 	VarInt packet_length;
 	VarInt data_length;
 	VarInt packet_identifier;
 } CompressedPacketHeader;
-union PacketHeader
-{
-	UncompressedPacketHeader uncompressed;
-	CompressedPacketHeader compressed;
-};
 enum State
 {
 	State_Status = 1,
@@ -129,7 +124,7 @@ enum State
 };
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	VarInt protocol_version;
 	String server_address;
 	UShort server_port;
@@ -137,31 +132,31 @@ typedef struct
 } PacketServerboundHandshake;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	String JSON_response;
 } PacketClientboundStatusResponse;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	Long payload;
 } PacketClientboundStatusPingResponse;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 } PacketServerboundStatusRequest;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	Long payload;
 } PacketServerboundStatusPingRequest;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	JSONTextComponent reason;
 } PacketClientboundLoginDisconnect;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	String server_identifier;
 	VarInt public_key_length;
 	Byte *public_key;
@@ -170,7 +165,7 @@ typedef struct
 } PacketClientboundLoginEncryptionRequest;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	UUID UUID;
 	String username;
 	VarInt properties_count;
@@ -181,25 +176,25 @@ typedef struct
 } PacketClientboundLoginSuccess;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	VarInt threshold;
 } PacketClientboundLoginSetCompression;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	VarInt message_identifier;
 	Identifier channel;
 	Byte *data;
 } PacketClientboundLoginPluginRequest;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	String player_username;
 	UUID player_UUID;
 } PacketServerboundLoginStart;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	VarInt shared_secret_length;
 	Byte *shared_secret;
 	VarInt verify_token_length;
@@ -207,14 +202,19 @@ typedef struct
 } PacketServerboundLoginEncryptionResponse;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 	VarInt message_identifier;
 	Boolean successful;
 	Byte *data;
 } PacketServerboundLoginPluginResponse;
 typedef struct
 {
-	union PacketHeader header;
+	PacketHeader header;
 } PacketServerboundLoginAcknowledged;
+
+VarInt varint_encode(int32_t value);
+int32_t varint_decode(VarInt varint);
+VarLong varlong_encode(int64_t value);
+int64_t varlong_decode(VarLong varlong);
 
 #endif
