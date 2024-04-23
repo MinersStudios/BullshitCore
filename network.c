@@ -11,8 +11,8 @@
 #include "global_macros.h"
 #include "network.h"
 
-#define MINECRAFT_VERSION "1.20.4"
-#define PROTOCOL_VERSION 765
+#define MINECRAFT_VERSION "1.20.5"
+#define PROTOCOL_VERSION 766
 #define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
 
 // config
