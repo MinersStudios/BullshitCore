@@ -1,10 +1,6 @@
 #ifndef BULLSHITCORE_NETWORK
 #define BULLSHITCORE_NETWORK
 
-// This codebase assumes system's architecture to have: 8-bit byte width, two's
-// complement representation, IEEE 754-2008 floats.
-// TODO: Explicitly fail to compile or emulate this configuration
-
 #include <stdint.h>
 
 typedef _Bool Boolean;
@@ -212,9 +208,9 @@ typedef struct
 	PacketHeader header;
 } PacketServerboundLoginAcknowledged;
 
-VarInt varint_encode(int32_t value);
-int32_t varint_decode(VarInt varint);
-VarLong varlong_encode(int64_t value);
-int64_t varlong_decode(VarLong varlong);
+VarInt bullshitcore_network_varint_encode(int32_t value);
+int32_t bullshitcore_network_varint_decode(VarInt varint);
+VarLong bullshitcore_network_varlong_encode(int64_t value);
+int64_t bullshitcore_network_varlong_decode(VarLong varlong);
 
 #endif
