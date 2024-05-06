@@ -23,7 +23,7 @@
 VarInt
 bullshitcore_network_varint_encode(int32_t value)
 {
-	return bullshitcore_network_varlong_encode((int64_t)value);
+	return bullshitcore_network_varlong_encode(value);
 }
 
 int32_t
@@ -65,9 +65,9 @@ bullshitcore_network_varlong_decode(VarLong varlong)
 }
 
 static void *
-main_routine(void * restrict p_client_endpoint)
+main_routine(void *p_client_endpoint)
 {
-	int client_endpoint = *(int *)p_client_endpoint;
+	const int client_endpoint = *(int *)p_client_endpoint;
 	free(p_client_endpoint);
 	Boolean compression_enabled = false;
 	enum State current_state;
@@ -80,7 +80,7 @@ main_routine(void * restrict p_client_endpoint)
 int
 main(void)
 {
-	int server_endpoint = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	const int server_endpoint = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (unlikely(server_endpoint == -1)) PERROR_AND_EXIT("socket")
 	if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &(const int){ 1 }, sizeof(int)) == -1))
 		PERROR_AND_GOTO_CLOSEFD("setsockopt", server)
@@ -107,29 +107,19 @@ main(void)
 	{
 		int client_endpoint;
 		{
-			pthread_t connections[MAX_CONNECTIONS];
-			int_least16_t thread_counter = 0;
 			while (1)
 			{
 				client_endpoint = accept(server_endpoint, NULL, NULL);
 				if (unlikely(client_endpoint == -1))
 					PERROR_AND_GOTO_CLOSEFD("accept", server)
-				if (thread_counter == MAX_CONNECTIONS)
-				{
-					if (unlikely(close(client_endpoint) == -1))
-						PERROR_AND_GOTO_CLOSEFD("close", server)
-					continue;
-				}
 				bullshitcore_log_log("Connection is established!");
 				int * const p_client_endpoint = malloc(sizeof client_endpoint);
 				if (unlikely(!p_client_endpoint))
 					PERROR_AND_GOTO_CLOSEFD("malloc", client)
 				*p_client_endpoint = client_endpoint;
 				pthread_t thread;
-				pthread_create(&thread, NULL, main_routine, p_client_endpoint);
-				connections[thread_counter] = thread;
-				++thread_counter;
-				bullshitcore_log_logf("thread counter is now %d\n", thread_counter);
+				if (unlikely(pthread_create(&thread, NULL, main_routine, p_client_endpoint)))
+					PERROR_AND_GOTO_CLOSEFD("pthread_create", client)
 			}
 		}
 		if (unlikely(close(client_endpoint) == -1))
