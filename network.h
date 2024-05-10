@@ -210,8 +210,8 @@ typedef struct
 } PacketServerboundLoginAcknowledged;
 
 VarInt bullshitcore_network_varint_encode(int32_t value);
-int32_t bullshitcore_network_varint_decode(VarInt varint, size_t *bytes);
+int32_t bullshitcore_network_varint_decode(VarInt varint, size_t * restrict bytes);
 VarLong bullshitcore_network_varlong_encode(int64_t value);
-int64_t bullshitcore_network_varlong_decode(VarLong varlong, size_t *bytes);
+int64_t bullshitcore_network_varlong_decode(VarLong varlong, size_t * restrict bytes);
 
 #endif

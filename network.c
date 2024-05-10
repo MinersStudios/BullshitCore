@@ -29,7 +29,7 @@ bullshitcore_network_varint_encode(int32_t value)
 }
 
 int32_t
-bullshitcore_network_varint_decode(VarInt varint, size_t *bytes)
+bullshitcore_network_varint_decode(VarInt varint, size_t * restrict bytes)
 {
 	int32_t value = 0;
 	size_t i = 0;
@@ -39,7 +39,7 @@ bullshitcore_network_varint_decode(VarInt varint, size_t *bytes)
 		value |= (varint_byte & 0x7F) << 7 * i;
 		if (!(varint_byte & 0x80)) break;
 	}
-	if (bytes) *bytes = i;
+	if (bytes) *bytes = i + 1;
 	return value;
 }
 
@@ -56,7 +56,7 @@ bullshitcore_network_varlong_encode(int64_t value)
 }
 
 int64_t
-bullshitcore_network_varlong_decode(VarLong varlong, size_t *bytes)
+bullshitcore_network_varlong_decode(VarLong varlong, size_t * restrict bytes)
 {
 	int64_t value = 0;
 	size_t i = 0;
@@ -66,7 +66,7 @@ bullshitcore_network_varlong_decode(VarLong varlong, size_t *bytes)
 		value |= (varlong_byte & 0x7F) << 7 * i;
 		if (!(varlong_byte & 0x80)) break;
 	}
-	if (bytes) *bytes = i;
+	if (bytes) *bytes = i + 1;
 	return value;
 }
 
@@ -81,18 +81,30 @@ main_routine(void *p_client_endpoint)
 		Byte *buffer = malloc(MAGICNUMBER1);
 		if (unlikely(!buffer)) goto clear_stack;
 		ssize_t bytes_read = recv(client_endpoint, buffer, MAGICNUMBER1, 0);
-		if (unlikely(bytes_read == -1)) goto clear_stack;
+		if (unlikely(bytes_read == -1))
+		{
+			free(buffer);
+			goto clear_stack;
+		}
 		size_t packet_length_boundary_tail;
 		int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_length_boundary_tail);
 		int32_t packet_length_left = packet_length - MAGICNUMBER1;
 		if (packet_length_left > 0)
 		{
 			buffer = realloc(buffer, packet_length);
-			if (unlikely(!buffer)) goto clear_stack;
+			if (unlikely(!buffer))
+			{
+				free(buffer);
+				goto clear_stack;
+			}
 			bytes_read = recv(client_endpoint, buffer + MAGICNUMBER1, packet_length_left, 0);
-			if (unlikely(bytes_read == -1)) goto clear_stack;
+			if (unlikely(bytes_read == -1))
+			{
+				free(buffer);
+				goto clear_stack;
+			}
 		}
-		int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + packet_length_boundary_tail + 1, NULL);
+		int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + packet_length_boundary_tail, NULL);
 	}
 	return NULL;
 clear_stack:;
