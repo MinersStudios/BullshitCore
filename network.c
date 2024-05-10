@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
@@ -14,6 +15,7 @@
 #define MINECRAFT_VERSION "1.20.5"
 #define PROTOCOL_VERSION 766
 #define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
+#define MAGICNUMBER1 128
 
 // config
 #define ADDRESS "0.0.0.0"
@@ -27,15 +29,17 @@ bullshitcore_network_varint_encode(int32_t value)
 }
 
 int32_t
-bullshitcore_network_varint_decode(VarInt varint)
+bullshitcore_network_varint_decode(VarInt varint, size_t *bytes)
 {
 	int32_t value = 0;
-	for (size_t i = 0; i < 5; ++i)
+	size_t i = 0;
+	for (;i < 5; ++i)
 	{
 		const int8_t varint_byte = varint[i];
 		value |= (varint_byte & 0x7F) << 7 * i;
 		if (!(varint_byte & 0x80)) break;
 	}
+	if (bytes) *bytes = i;
 	return value;
 }
 
@@ -52,29 +56,51 @@ bullshitcore_network_varlong_encode(int64_t value)
 }
 
 int64_t
-bullshitcore_network_varlong_decode(VarLong varlong)
+bullshitcore_network_varlong_decode(VarLong varlong, size_t *bytes)
 {
 	int64_t value = 0;
-	for (size_t i = 0; i < 10; ++i)
+	size_t i = 0;
+	for (;i < 10; ++i)
 	{
 		const int8_t varlong_byte = varlong[i];
 		value |= (varlong_byte & 0x7F) << 7 * i;
 		if (!(varlong_byte & 0x80)) break;
 	}
+	if (bytes) *bytes = i;
 	return value;
 }
 
 static void *
 main_routine(void *p_client_endpoint)
 {
-	const int client_endpoint = *(int *)p_client_endpoint;
-	free(p_client_endpoint);
-	Boolean compression_enabled = false;
-	enum State current_state;
-	Byte buffer[128];
-	// int bytes_read = recv(client_endpoint, &buffer, sizeof buffer, 0);
-	// if (unlikely(bytes_read == -1)) return (void *)1;
+	{
+		const int client_endpoint = *(int *)p_client_endpoint;
+		free(p_client_endpoint);
+		enum State current_state = State_Handshaking;
+		Boolean compression_enabled = false;
+		Byte *buffer = malloc(MAGICNUMBER1);
+		if (unlikely(!buffer)) goto clear_stack;
+		ssize_t bytes_read = recv(client_endpoint, buffer, MAGICNUMBER1, 0);
+		if (unlikely(bytes_read == -1)) goto clear_stack;
+		size_t packet_length_boundary_tail;
+		int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_length_boundary_tail);
+		int32_t packet_length_left = packet_length - MAGICNUMBER1;
+		if (packet_length_left > 0)
+		{
+			buffer = realloc(buffer, packet_length);
+			if (unlikely(!buffer)) goto clear_stack;
+			bytes_read = recv(client_endpoint, buffer + MAGICNUMBER1, packet_length_left, 0);
+			if (unlikely(bytes_read == -1)) goto clear_stack;
+		}
+		int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + packet_length_boundary_tail + 1, NULL);
+	}
 	return NULL;
+clear_stack:;
+	int my_errno = errno;
+	int *p_my_errno = malloc(sizeof my_errno);
+	if (unlikely(!p_my_errno)) return (void *)1;
+	*p_my_errno = my_errno;
+	return p_my_errno;
 }
 
 int
