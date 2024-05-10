@@ -113,7 +113,8 @@ typedef struct
 } CompressedPacketHeader;
 enum State
 {
-	State_Status = 1,
+	State_Handshaking,
+	State_Status,
 	State_Login,
 	State_Configuration,
 	State_Play
@@ -209,8 +210,8 @@ typedef struct
 } PacketServerboundLoginAcknowledged;
 
 VarInt bullshitcore_network_varint_encode(int32_t value);
-int32_t bullshitcore_network_varint_decode(VarInt varint);
+int32_t bullshitcore_network_varint_decode(VarInt varint, size_t *bytes);
 VarLong bullshitcore_network_varlong_encode(int64_t value);
-int64_t bullshitcore_network_varlong_decode(VarLong varlong);
+int64_t bullshitcore_network_varlong_decode(VarLong varlong, size_t *bytes);
 
 #endif
