@@ -12,10 +12,10 @@
 #include "log.h"
 #include "network.h"
 
-#define MINECRAFT_VERSION "1.20.5"
-#define PROTOCOL_VERSION 766
+#define MINECRAFT_VERSION "1.20.4"
+#define PROTOCOL_VERSION 765
 #define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
-#define MAGICNUMBER1 128
+#define PACKET_MAXSIZE 2097151
 
 // config
 #define ADDRESS "0.0.0.0"
@@ -78,33 +78,29 @@ main_routine(void *p_client_endpoint)
 		free(p_client_endpoint);
 		enum State current_state = State_Handshaking;
 		Boolean compression_enabled = false;
-		Byte *buffer = malloc(MAGICNUMBER1);
-		if (unlikely(!buffer)) goto clear_stack;
-		ssize_t bytes_read = recv(client_endpoint, buffer, MAGICNUMBER1, 0);
-		if (unlikely(bytes_read == -1))
-		{
-			free(buffer);
+		Byte buffer[PACKET_MAXSIZE];
+		if (unlikely(recv(client_endpoint, buffer, PACKET_MAXSIZE, 0) == -1))
 			goto clear_stack;
-		}
-		size_t packet_length_boundary_tail;
-		int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_length_boundary_tail);
-		int32_t packet_length_left = packet_length - MAGICNUMBER1;
-		if (packet_length_left > 0)
+		size_t buffer_offset = 0;
+		size_t packet_next_boundary;
+		int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
+		buffer_offset += packet_next_boundary;
+		int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+		buffer_offset += packet_next_boundary;
+		switch (packet_identifier)
 		{
-			buffer = realloc(buffer, packet_length);
-			if (unlikely(!buffer))
+			case 0:
 			{
-				free(buffer);
-				goto clear_stack;
-			}
-			bytes_read = recv(client_endpoint, buffer + MAGICNUMBER1, packet_length_left, 0);
-			if (unlikely(bytes_read == -1))
-			{
-				free(buffer);
-				goto clear_stack;
+				int32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+				buffer_offset += packet_next_boundary;
+				int32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+				buffer_offset += packet_next_boundary;
+				int32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + sizeof(UShort), &packet_next_boundary);
+				buffer_offset += packet_next_boundary;
+				current_state = target_state;
+				break;
 			}
 		}
-		int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + packet_length_boundary_tail, NULL);
 	}
 	return NULL;
 clear_stack:;
