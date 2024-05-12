@@ -119,95 +119,15 @@ enum State
 	State_Configuration,
 	State_Play
 };
-typedef struct
+enum HandshakePacket
 {
-	PacketHeader header;
-	VarInt protocol_version;
-	String server_address;
-	UShort server_port;
-	VarInt next_state;
-} PacketServerboundHandshake;
-typedef struct
+	HANDSHAKE_PACKET
+};
+enum StatusPacket
 {
-	PacketHeader header;
-	String JSON_response;
-} PacketClientboundStatusResponse;
-typedef struct
-{
-	PacketHeader header;
-	Long payload;
-} PacketClientboundStatusPingResponse;
-typedef struct
-{
-	PacketHeader header;
-} PacketServerboundStatusRequest;
-typedef struct
-{
-	PacketHeader header;
-	Long payload;
-} PacketServerboundStatusPingRequest;
-typedef struct
-{
-	PacketHeader header;
-	JSONTextComponent reason;
-} PacketClientboundLoginDisconnect;
-typedef struct
-{
-	PacketHeader header;
-	String server_identifier;
-	VarInt public_key_length;
-	Byte *public_key;
-	VarInt verify_token_length;
-	Byte *verify_token;
-} PacketClientboundLoginEncryptionRequest;
-typedef struct
-{
-	PacketHeader header;
-	UUID UUID;
-	String username;
-	VarInt properties_count;
-	String property_name;
-	String property_value;
-	Boolean sign;
-	String signature;
-} PacketClientboundLoginSuccess;
-typedef struct
-{
-	PacketHeader header;
-	VarInt threshold;
-} PacketClientboundLoginSetCompression;
-typedef struct
-{
-	PacketHeader header;
-	VarInt message_identifier;
-	Identifier channel;
-	Byte *data;
-} PacketClientboundLoginPluginRequest;
-typedef struct
-{
-	PacketHeader header;
-	String player_username;
-	UUID player_UUID;
-} PacketServerboundLoginStart;
-typedef struct
-{
-	PacketHeader header;
-	VarInt shared_secret_length;
-	Byte *shared_secret;
-	VarInt verify_token_length;
-	Byte *verify_token;
-} PacketServerboundLoginEncryptionResponse;
-typedef struct
-{
-	PacketHeader header;
-	VarInt message_identifier;
-	Boolean successful;
-	Byte *data;
-} PacketServerboundLoginPluginResponse;
-typedef struct
-{
-	PacketHeader header;
-} PacketServerboundLoginAcknowledged;
+	STATUSREQUEST_PACKET,
+	PINGREQUEST_PACKET
+};
 
 VarInt bullshitcore_network_varint_encode(int32_t value);
 int32_t bullshitcore_network_varint_decode(VarInt varint, size_t * restrict bytes);
