@@ -87,17 +87,39 @@ main_routine(void *p_client_endpoint)
 		buffer_offset += packet_next_boundary;
 		int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 		buffer_offset += packet_next_boundary;
-		switch (packet_identifier)
+		switch (current_state)
 		{
-			case 0:
+			case State_Handshaking:
 			{
-				int32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-				buffer_offset += packet_next_boundary;
-				int32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-				buffer_offset += packet_next_boundary;
-				int32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + sizeof(UShort), &packet_next_boundary);
-				buffer_offset += packet_next_boundary;
-				current_state = target_state;
+				switch (packet_identifier)
+				{
+					case HANDSHAKE_PACKET:
+					{
+						int32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+						buffer_offset += packet_next_boundary;
+						int32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+						buffer_offset += packet_next_boundary;
+						int32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + sizeof(UShort), &packet_next_boundary);
+						buffer_offset += packet_next_boundary;
+						current_state = target_state;
+						break;
+					}
+				}
+				break;
+			}
+			case State_Status:
+			{
+				switch (packet_identifier)
+				{
+					case STATUSREQUEST_PACKET:
+					{
+						break;
+					}
+					case PINGREQUEST_PACKET:
+					{
+						break;
+					}
+				}
 				break;
 			}
 		}
