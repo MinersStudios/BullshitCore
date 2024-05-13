@@ -137,16 +137,16 @@ int
 main(void)
 {
 	pthread_attr_t thread_attributes;
-	int _ = pthread_attr_init(&thread_attributes);
-	if (unlikely(_))
+	int ret = pthread_attr_init(&thread_attributes);
+	if (unlikely(ret))
 	{
-		errno = _;
+		errno = ret;
 		PERROR_AND_EXIT("pthread_attr_init")
 	}
-	_ = pthread_attr_setstacksize(&thread_attributes, 8388608);
-	if (unlikely(_))
+	ret = pthread_attr_setstacksize(&thread_attributes, 8388608);
+	if (unlikely(ret))
 	{
-		errno = _;
+		errno = ret;
 		PERROR_AND_EXIT("pthread_attr_setstacksize")
 	}
 	const int server_endpoint = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -156,7 +156,7 @@ main(void)
 	{
 		struct in_addr address;
 		{
-			int ret = inet_pton(AF_INET, ADDRESS, &address);
+			ret = inet_pton(AF_INET, ADDRESS, &address);
 			if (!ret)
 			{
 				fputs("An invalid server address was specified.\n", stderr);
@@ -187,17 +187,17 @@ main(void)
 					PERROR_AND_GOTO_CLOSEFD("malloc", client)
 				*p_client_endpoint = client_endpoint;
 				pthread_t thread;
-				_ = pthread_create(&thread, &thread_attributes, main_routine, p_client_endpoint);
-				if (unlikely(_))
+				ret = pthread_create(&thread, &thread_attributes, main_routine, p_client_endpoint);
+				if (unlikely(ret))
 				{
-					errno = _;
+					errno = ret;
 					PERROR_AND_GOTO_CLOSEFD("pthread_create", client)
 				}
 			}
-			_ = pthread_attr_destroy(&thread_attributes);
-			if (unlikely(_))
+			ret = pthread_attr_destroy(&thread_attributes);
+			if (unlikely(ret))
 			{
-				errno = _;
+				errno = ret;
 				PERROR_AND_GOTO_CLOSEFD("pthread_attr_destroy", client)
 			}
 		}
