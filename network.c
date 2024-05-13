@@ -136,6 +136,19 @@ clear_stack:;
 int
 main(void)
 {
+	pthread_attr_t thread_attributes;
+	int _ = pthread_attr_init(&thread_attributes);
+	if (unlikely(_))
+	{
+		errno = _;
+		PERROR_AND_EXIT("pthread_attr_init")
+	}
+	_ = pthread_attr_setstacksize(&thread_attributes, 8388608);
+	if (unlikely(_))
+	{
+		errno = _;
+		PERROR_AND_EXIT("pthread_attr_setstacksize")
+	}
 	const int server_endpoint = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (unlikely(server_endpoint == -1)) PERROR_AND_EXIT("socket")
 	if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &(const int){ 1 }, sizeof(int)) == -1))
@@ -174,8 +187,18 @@ main(void)
 					PERROR_AND_GOTO_CLOSEFD("malloc", client)
 				*p_client_endpoint = client_endpoint;
 				pthread_t thread;
-				if (unlikely(pthread_create(&thread, NULL, main_routine, p_client_endpoint)))
+				_ = pthread_create(&thread, &thread_attributes, main_routine, p_client_endpoint);
+				if (unlikely(_))
+				{
+					errno = _;
 					PERROR_AND_GOTO_CLOSEFD("pthread_create", client)
+				}
+			}
+			_ = pthread_attr_destroy(&thread_attributes);
+			if (unlikely(_))
+			{
+				errno = _;
+				PERROR_AND_GOTO_CLOSEFD("pthread_attr_destroy", client)
 			}
 		}
 		if (unlikely(close(client_endpoint) == -1))
