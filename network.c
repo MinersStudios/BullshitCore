@@ -155,16 +155,14 @@ main(void)
 		PERROR_AND_GOTO_CLOSEFD("setsockopt", server)
 	{
 		struct in_addr address;
+		ret = inet_pton(AF_INET, ADDRESS, &address);
+		if (!ret)
 		{
-			ret = inet_pton(AF_INET, ADDRESS, &address);
-			if (!ret)
-			{
-				fputs("An invalid server address was specified.\n", stderr);
-				return EXIT_FAILURE;
-			}
-			else if (unlikely(ret == -1))
-				PERROR_AND_GOTO_CLOSEFD("inet_pton", server)
+			fputs("An invalid server address was specified.\n", stderr);
+			return EXIT_FAILURE;
 		}
+		else if (unlikely(ret == -1))
+			PERROR_AND_GOTO_CLOSEFD("inet_pton", server)
 		const struct sockaddr_in server_address = { AF_INET, htons(PORT), address };
 		struct sockaddr server_address_data;
 		memcpy(&server_address_data, &server_address, sizeof server_address_data);
