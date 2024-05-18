@@ -15,6 +15,7 @@
 #define MINECRAFT_VERSION "1.20.4"
 #define PROTOCOL_VERSION 765
 #define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
+#define THREAD_STACK_SIZE 8388608
 #define PACKET_MAXSIZE 2097151
 
 // config
@@ -143,7 +144,7 @@ main(void)
 		errno = ret;
 		PERROR_AND_EXIT("pthread_attr_init")
 	}
-	ret = pthread_attr_setstacksize(&thread_attributes, 8388608);
+	ret = pthread_attr_setstacksize(&thread_attributes, THREAD_STACK_SIZE);
 	if (unlikely(ret))
 	{
 		errno = ret;
