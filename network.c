@@ -79,7 +79,7 @@ main_routine(void *p_client_endpoint)
 		free(p_client_endpoint);
 		enum State current_state = State_Handshaking;
 		Boolean compression_enabled = false;
-		Byte buffer[PACKET_MAXSIZE];
+		int8_t buffer[PACKET_MAXSIZE];
 		if (unlikely(recv(client_endpoint, buffer, PACKET_MAXSIZE, 0) == -1))
 			goto clear_stack;
 		size_t buffer_offset = 0;
@@ -100,7 +100,7 @@ main_routine(void *p_client_endpoint)
 						buffer_offset += packet_next_boundary;
 						int32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 						buffer_offset += packet_next_boundary;
-						int32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + sizeof(UShort), &packet_next_boundary);
+						int32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
 						buffer_offset += packet_next_boundary;
 						current_state = target_state;
 						break;
