@@ -6,14 +6,6 @@
 typedef _Bool Boolean;
 #define true 1
 #define false 0
-typedef int8_t Byte;
-typedef uint8_t UByte;
-typedef int16_t Short;
-typedef uint16_t UShort;
-typedef int32_t Int;
-typedef int64_t Long;
-typedef float Float;
-typedef double Double;
 typedef int8_t *VarInt;
 typedef int8_t *VarLong;
 typedef struct
@@ -37,16 +29,16 @@ enum TAGType
 	TAGType_IntArray,
 	TAGType_LongArray
 };
-typedef Byte TAG_Byte;
-typedef Short TAG_Short;
-typedef Int TAG_Int;
-typedef Long TAG_Long;
-typedef Float TAG_Float;
-typedef Double TAG_Double;
+typedef int8_t TAG_Byte;
+typedef int16_t TAG_Short;
+typedef int32_t TAG_Int;
+typedef int64_t TAG_Long;
+typedef float TAG_Float;
+typedef double TAG_Double;
 typedef struct
 {
 	uint32_t length;
-	Byte contents[];
+	int8_t contents[];
 } TAG_Byte_Array;
 typedef struct
 {
@@ -58,16 +50,16 @@ typedef struct
 typedef struct
 {
 	uint32_t length;
-	Int contents[];
+	uint32_t contents[];
 } TAG_Int_Array;
 typedef struct
 {
 	uint32_t length;
-	Long contents[];
+	uint64_t contents[];
 } TAG_Long_Array;
 typedef struct
 {
-	Byte tag_type;
+	uint8_t tag_type;
 	TAG_String name;
 	void *payload;
 } NBT;
@@ -76,7 +68,7 @@ typedef String JSONTextComponent;
 typedef String Identifier;
 typedef struct
 {
-	UByte index;
+	uint8_t index;
 	VarInt type;
 	void *value;
 } EntityMetadata[];
@@ -84,22 +76,18 @@ typedef struct
 {
 	Boolean present;
 	VarInt item;
-	Byte item_count;
+	uint8_t item_count;
 	NBT NBT;
 } Slot;
-typedef int64_t Position;
-#ifdef UINT8_MAX
+typedef uint64_t Position;
 typedef uint8_t Angle;
-#else
-typedef int8_t Angle;
-#endif
 typedef uint64_t UUID[2];
 typedef struct
 {
 	VarInt length;
-	Long data[];
+	uint64_t data[];
 } BitSet;
-typedef Byte FixedBitSet[];
+typedef uint8_t FixedBitSet[];
 typedef struct
 {
 	VarInt length;
