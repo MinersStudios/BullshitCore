@@ -14,6 +14,7 @@
 
 #define MINECRAFT_VERSION "1.20.4"
 #define PROTOCOL_VERSION 765
+#define PROTOCOL_VERSION_STRING EXPAND_AND_STRINGIFY(PROTOCOL_VERSION)
 #define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
 #define THREAD_STACK_SIZE 8388608
 #define PACKET_MAXSIZE 2097151
@@ -22,6 +23,7 @@
 #define ADDRESS "0.0.0.0"
 #define PORT 25565
 #define MAX_CONNECTIONS 15
+#define FAVICON
 
 VarInt
 bullshitcore_network_varint_encode(int32_t value)
@@ -30,7 +32,7 @@ bullshitcore_network_varint_encode(int32_t value)
 }
 
 int32_t
-bullshitcore_network_varint_decode(VarInt varint, size_t * restrict bytes)
+bullshitcore_network_varint_decode(VarInt restrict varint, size_t * restrict bytes)
 {
 	int32_t value = 0;
 	size_t i = 0;
@@ -57,7 +59,7 @@ bullshitcore_network_varlong_encode(int64_t value)
 }
 
 int64_t
-bullshitcore_network_varlong_decode(VarLong varlong, size_t * restrict bytes)
+bullshitcore_network_varlong_decode(VarLong restrict varlong, size_t * restrict bytes)
 {
 	int64_t value = 0;
 	size_t i = 0;
@@ -79,56 +81,131 @@ main_routine(void *p_client_endpoint)
 		free(p_client_endpoint);
 		enum State current_state = State_Handshaking;
 		Boolean compression_enabled = false;
-		int8_t buffer[PACKET_MAXSIZE];
-		if (unlikely(recv(client_endpoint, buffer, PACKET_MAXSIZE, 0) == -1))
-			goto clear_stack;
-		size_t buffer_offset = 0;
-		size_t packet_next_boundary;
-		int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
-		buffer_offset += packet_next_boundary;
-		int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-		buffer_offset += packet_next_boundary;
-		switch (current_state)
+		uint8_t buffer[PACKET_MAXSIZE];
+		size_t buffer_offset, packet_next_boundary;
+		while (1)
 		{
-			case State_Handshaking:
+			const ssize_t bytes_read = recv(client_endpoint, buffer, PACKET_MAXSIZE, 0);
+			if (unlikely(bytes_read == -1))
+				goto clear_stack;
+			else if (!bytes_read) return NULL;
 			{
-				switch (packet_identifier)
-				{
-					case HANDSHAKE_PACKET:
-					{
-						int32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-						buffer_offset += packet_next_boundary;
-						int32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-						buffer_offset += packet_next_boundary;
-						int32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
-						buffer_offset += packet_next_boundary;
-						current_state = target_state;
-						break;
-					}
-				}
-				break;
+				const int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
 			}
-			case State_Status:
+			buffer_offset = packet_next_boundary;
+			const int32_t packet_identifier = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+			buffer_offset += packet_next_boundary;
+			switch (current_state)
 			{
-				switch (packet_identifier)
+				case State_Handshaking:
 				{
-					case STATUSREQUEST_PACKET:
+					switch (packet_identifier)
 					{
-						break;
+						case HANDSHAKE_PACKET:
+						{
+							const int32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							const int32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							const int32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							current_state = target_state;
+							break;
+						}
 					}
-					case PINGREQUEST_PACKET:
-					{
-						break;
-					}
+					break;
 				}
-				break;
+				case State_Status:
+				{
+					switch (packet_identifier)
+					{
+						case STATUSREQUEST_PACKET:
+						{
+							size_t mybuffer_offset = 0;
+							const char * const text = "{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" PROTOCOL_VERSION_STRING "},\"description\":{\"text\":\"BullshitCore is up and running!\",\"favicon\":\"" FAVICON "\"}}";
+							const size_t text_length = strlen(text);
+							const JSONTextComponent packet_payload =
+							{
+								bullshitcore_network_varint_encode(text_length),
+								text
+							};
+							if (text_length > JSONTEXTCOMPONENT_MAXSIZE) // shall probably do something about it
+								break;
+							size_t packet_payload_length_length;
+							bullshitcore_network_varint_decode(packet_payload.length, &packet_payload_length_length);
+							const size_t packet_length = 1 + packet_payload_length_length + text_length;
+							const VarInt packet_length_varint = bullshitcore_network_varint_encode(packet_length);
+							size_t packet_length_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_length);
+							uint8_t * const packet = malloc(packet_length_length + packet_length);
+							if (unlikely(!packet)) goto clear_stack;
+							for (size_t i = 0; i < packet_length_length; ++i)
+								packet[i] = packet_length_varint[i];
+							mybuffer_offset += packet_length_length;
+							packet[mybuffer_offset] = STATUSREQUEST_PACKET;
+							++mybuffer_offset;
+							for (size_t i = 0; i < packet_payload_length_length; ++i)
+								packet[mybuffer_offset + i] = packet_payload.length[i];
+							mybuffer_offset += packet_length_length;
+							for (size_t c = 0; c < text_length; ++c)
+								packet[mybuffer_offset + c] = packet_payload.contents[c];
+							if (unlikely(send(client_endpoint, packet, packet_length_length + packet_length, 0) == -1))
+							{
+								free(packet);
+								goto clear_stack;
+							}
+							free(packet);
+							break;
+						}
+						case PINGREQUEST_PACKET:
+						{
+							uint8_t * const packet = malloc(6);
+							if (unlikely(!packet)) goto clear_stack;
+							bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							packet[0] = 5;
+							packet[1] = PINGREQUEST_PACKET;
+							packet[2] = buffer[buffer_offset];
+							++buffer_offset;
+							packet[3] = buffer[buffer_offset];
+							++buffer_offset;
+							packet[4] = buffer[buffer_offset];
+							++buffer_offset;
+							packet[5] = buffer[buffer_offset];
+							++buffer_offset;
+							if (unlikely(send(client_endpoint, packet, 6, 0) == -1))
+							{
+								free(packet);
+								goto clear_stack;
+							}
+							free(packet);
+							break;
+						}
+					}
+					break;
+				}
+				case State_Login:
+				{
+					break;
+				}
+				case State_Configuration:
+				{
+					break;
+				}
+				case State_Play:
+				{
+					break;
+				}
 			}
+			bullshitcore_log_log("looped");
 		}
 	}
 	return NULL;
 clear_stack:;
-	int my_errno = errno;
-	int *p_my_errno = malloc(sizeof my_errno);
+	const int my_errno = errno;
+	int * const p_my_errno = malloc(sizeof my_errno);
 	if (unlikely(!p_my_errno)) return (void *)1;
 	*p_my_errno = my_errno;
 	return p_my_errno;

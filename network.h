@@ -6,12 +6,12 @@
 typedef _Bool Boolean;
 #define true 1
 #define false 0
-typedef int8_t *VarInt;
-typedef int8_t *VarLong;
+typedef uint8_t *VarInt;
+typedef uint8_t *VarLong;
 typedef struct
 {
-	VarInt size;
-	uint8_t *contents;
+	VarInt length;
+	const char *contents;
 } String;
 enum TAGType
 {
@@ -65,7 +65,9 @@ typedef struct
 } NBT;
 typedef NBT TextComponent;
 typedef String JSONTextComponent;
+#define JSONTEXTCOMPONENT_MAXSIZE 262144
 typedef String Identifier;
+#define IDENTIFIER_MAXSIZE 32767
 typedef struct
 {
 	uint8_t index;
@@ -118,8 +120,8 @@ enum StatusPacket
 };
 
 VarInt bullshitcore_network_varint_encode(int32_t value);
-int32_t bullshitcore_network_varint_decode(VarInt varint, size_t * restrict bytes);
+int32_t bullshitcore_network_varint_decode(VarInt restrict varint, size_t * restrict bytes);
 VarLong bullshitcore_network_varlong_encode(int64_t value);
-int64_t bullshitcore_network_varlong_decode(VarLong varlong, size_t * restrict bytes);
+int64_t bullshitcore_network_varlong_decode(VarLong restrict varlong, size_t * restrict bytes);
 
 #endif
