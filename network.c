@@ -86,9 +86,8 @@ main_routine(void *p_client_endpoint)
 		while (1)
 		{
 			const ssize_t bytes_read = recv(client_endpoint, buffer, PACKET_MAXSIZE, 0);
-			if (unlikely(bytes_read == -1))
-				goto clear_stack;
-			else if (!bytes_read) return NULL;
+			if (!bytes_read) return NULL;
+			else if (unlikely(bytes_read == -1)) goto clear_stack;
 			{
 				const int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
 			}
@@ -139,16 +138,13 @@ main_routine(void *p_client_endpoint)
 							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_length);
 							uint8_t * const packet = malloc(packet_length_length + packet_length);
 							if (unlikely(!packet)) goto clear_stack;
-							for (size_t i = 0; i < packet_length_length; ++i)
-								packet[i] = packet_length_varint[i];
+							memcpy(packet, packet_length_varint, packet_length_length);
 							mybuffer_offset += packet_length_length;
 							packet[mybuffer_offset] = STATUSREQUEST_PACKET;
 							++mybuffer_offset;
-							for (size_t i = 0; i < packet_payload_length_length; ++i)
-								packet[mybuffer_offset + i] = packet_payload.length[i];
+							memcpy(packet + mybuffer_offset, packet_payload.length, packet_payload_length_length);
 							mybuffer_offset += packet_length_length;
-							for (size_t c = 0; c < text_length; ++c)
-								packet[mybuffer_offset + c] = packet_payload.contents[c];
+							memcpy(packet + mybuffer_offset, packet_payload.contents, text_length);
 							if (unlikely(send(client_endpoint, packet, packet_length_length + packet_length, 0) == -1))
 							{
 								free(packet);
