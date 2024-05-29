@@ -157,26 +157,14 @@ main_routine(void *p_client_endpoint)
 						{
 							uint8_t * const packet = malloc(6);
 							if (unlikely(!packet)) goto clear_stack;
-							bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							packet[0] = 5;
-							packet[1] = PINGREQUEST_PACKET;
-							packet[2] = buffer[buffer_offset];
-							++buffer_offset;
-							packet[3] = buffer[buffer_offset];
-							++buffer_offset;
-							packet[4] = buffer[buffer_offset];
-							++buffer_offset;
-							packet[5] = buffer[buffer_offset];
-							++buffer_offset;
+							memcpy(packet, buffer, 6);
 							if (unlikely(send(client_endpoint, packet, 6, 0) == -1))
 							{
 								free(packet);
 								goto clear_stack;
 							}
 							free(packet);
+							goto get_closed;
 							break;
 						}
 					}
@@ -198,6 +186,7 @@ main_routine(void *p_client_endpoint)
 			bullshitcore_log_log("looped");
 		}
 	}
+get_closed:
 	return NULL;
 clear_stack:;
 	const int my_errno = errno;
