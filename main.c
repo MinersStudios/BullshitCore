@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +16,7 @@
 #define MINECRAFT_VERSION "1.20.4"
 #define PROTOCOL_VERSION 765
 #define PROTOCOL_VERSION_STRING EXPAND_AND_STRINGIFY(PROTOCOL_VERSION)
-#define PERROR_AND_GOTO_CLOSEFD(s, ctx) { perror(s); goto ctx ## closefd; }
+#define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
 #define THREAD_STACK_SIZE 8388608
 #define PACKET_MAXSIZE 2097151
 
@@ -25,12 +26,19 @@
 #define MAX_CONNECTIONS 15
 #define FAVICON
 
+typedef struct
+{
+	int *p_client_endpoint;
+	sem_t *p_client_endpoint_semaphore;
+} ThreadArguments;
+
 static void *
-packet_receiver(void * restrict p_client_endpoint)
+packet_receiver(void * restrict thread_arguments)
 {
 	{
-		const int client_endpoint = *(int *)p_client_endpoint;
-		free(p_client_endpoint);
+		const int client_endpoint = *((ThreadArguments*)thread_arguments)->p_client_endpoint;
+		if (unlikely(sem_post(((ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
+			goto clear_stack_receiver;
 		enum State current_state = State_Handshaking;
 		Boolean compression_enabled = false;
 		uint8_t buffer[PACKET_MAXSIZE];
@@ -39,7 +47,7 @@ packet_receiver(void * restrict p_client_endpoint)
 		{
 			const ssize_t bytes_read = recv(client_endpoint, buffer, PACKET_MAXSIZE, 0);
 			if (!bytes_read) return NULL;
-			else if (unlikely(bytes_read == -1)) goto clear_stack;
+			else if (unlikely(bytes_read == -1)) goto clear_stack_receiver;
 			{
 				const int32_t packet_length = bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
 			}
@@ -89,7 +97,7 @@ packet_receiver(void * restrict p_client_endpoint)
 							size_t packet_length_length;
 							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_length);
 							uint8_t * const packet = malloc(packet_length_length + packet_length);
-							if (unlikely(!packet)) goto clear_stack;
+							if (unlikely(!packet)) goto clear_stack_receiver;
 							memcpy(packet, packet_length_varint, packet_length_length);
 							mybuffer_offset += packet_length_length;
 							packet[mybuffer_offset] = STATUSREQUEST_PACKET;
@@ -100,7 +108,7 @@ packet_receiver(void * restrict p_client_endpoint)
 							if (unlikely(send(client_endpoint, packet, packet_length_length + packet_length, 0) == -1))
 							{
 								free(packet);
-								goto clear_stack;
+								goto clear_stack_receiver;
 							}
 							free(packet);
 							break;
@@ -108,15 +116,15 @@ packet_receiver(void * restrict p_client_endpoint)
 						case PINGREQUEST_PACKET:
 						{
 							uint8_t * const packet = malloc(6);
-							if (unlikely(!packet)) goto clear_stack;
+							if (unlikely(!packet)) goto clear_stack_receiver;
 							memcpy(packet, buffer, 6);
 							if (unlikely(send(client_endpoint, packet, 6, 0) == -1))
 							{
 								free(packet);
-								goto clear_stack;
+								goto clear_stack_receiver;
 							}
 							free(packet);
-							goto get_closed;
+							goto get_closed_receiver;
 							break;
 						}
 					}
@@ -138,9 +146,9 @@ packet_receiver(void * restrict p_client_endpoint)
 			bullshitcore_log_log("looped");
 		}
 	}
-get_closed:
+get_closed_receiver:
 	return NULL;
-clear_stack:;
+clear_stack_receiver:;
 	const int my_errno = errno;
 	int * const p_my_errno = malloc(sizeof my_errno);
 	if (unlikely(!p_my_errno)) return (void *)1;
@@ -149,9 +157,21 @@ clear_stack:;
 }
 
 static void *
-packet_sender(void * restrict p_client_endpoint)
+packet_sender(void * restrict thread_arguments)
 {
+	{
+		const int client_endpoint = *((ThreadArguments*)thread_arguments)->p_client_endpoint;
+		if (unlikely(sem_post(((ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
+			goto get_closed_sender;
+	}
+get_closed_sender:
 	return NULL;
+clear_stack_sender:;
+	const int my_errno = errno;
+	int * const p_my_errno = malloc(sizeof my_errno);
+	if (unlikely(!p_my_errno)) return (void *)1;
+	*p_my_errno = my_errno;
+	return p_my_errno;
 }
 
 int
@@ -168,12 +188,17 @@ main(void)
 	if (unlikely(ret))
 	{
 		errno = ret;
-		PERROR_AND_EXIT("pthread_attr_setstacksize")
+		PERROR_AND_GOTO_DESTROY("pthread_attr_setstacksize", thread_attributes)
 	}
+	sem_t *p_client_endpoint_semaphore = malloc(sizeof *p_client_endpoint_semaphore);
+	if (unlikely(!p_client_endpoint_semaphore))
+		PERROR_AND_GOTO_DESTROY("malloc", thread_attributes)
+	if (unlikely(sem_init(p_client_endpoint_semaphore, 0, 0) == -1))
+		PERROR_AND_GOTO_DESTROY("sem_init", thread_attributes)
 	const int server_endpoint = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (unlikely(server_endpoint == -1)) PERROR_AND_EXIT("socket")
 	if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &(const int){ 1 }, sizeof(int)) == -1))
-		PERROR_AND_GOTO_CLOSEFD("setsockopt", server)
+		PERROR_AND_GOTO_DESTROY("setsockopt", server_endpoint)
 	{
 		struct in_addr address;
 		ret = inet_pton(AF_INET, ADDRESS, &address);
@@ -183,15 +208,15 @@ main(void)
 			return EXIT_FAILURE;
 		}
 		else if (unlikely(ret == -1))
-			PERROR_AND_GOTO_CLOSEFD("inet_pton", server)
+			PERROR_AND_GOTO_DESTROY("inet_pton", server_endpoint)
 		const struct sockaddr_in server_address = { AF_INET, htons(PORT), address };
 		struct sockaddr server_address_data;
 		memcpy(&server_address_data, &server_address, sizeof server_address_data);
 		if (unlikely(bind(server_endpoint, &server_address_data, sizeof server_address_data) == -1))
-			PERROR_AND_GOTO_CLOSEFD("bind", server)
+			PERROR_AND_GOTO_DESTROY("bind", server_endpoint)
 	}
 	if (unlikely(listen(server_endpoint, SOMAXCONN) == -1))
-		PERROR_AND_GOTO_CLOSEFD("listen", server)
+		PERROR_AND_GOTO_DESTROY("listen", server_endpoint)
 	{
 		int client_endpoint;
 		{
@@ -199,35 +224,58 @@ main(void)
 			{
 				client_endpoint = accept(server_endpoint, NULL, NULL);
 				if (unlikely(client_endpoint == -1))
-					PERROR_AND_GOTO_CLOSEFD("accept", server)
+					PERROR_AND_GOTO_DESTROY("accept", server_endpoint)
 				bullshitcore_log_log("Connection is established!");
 				int * const p_client_endpoint = malloc(sizeof client_endpoint);
 				if (unlikely(!p_client_endpoint))
-					PERROR_AND_GOTO_CLOSEFD("malloc", client)
+					PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 				*p_client_endpoint = client_endpoint;
-				pthread_t thread;
-				ret = pthread_create(&thread, &thread_attributes, packet_receiver, p_client_endpoint);
+				void *thread_arguments = malloc(sizeof p_client_endpoint + sizeof p_client_endpoint_semaphore);
+				if (unlikely(!thread_arguments))
+					PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
+				*(ThreadArguments*)thread_arguments = (ThreadArguments){ p_client_endpoint, p_client_endpoint_semaphore };
+				pthread_t packet_receiver_thread;
+				ret = pthread_create(&packet_receiver_thread, &thread_attributes, packet_receiver, thread_arguments);
 				if (unlikely(ret))
 				{
 					errno = ret;
-					PERROR_AND_GOTO_CLOSEFD("pthread_create", client)
+					PERROR_AND_GOTO_DESTROY("pthread_create", client_endpoint)
 				}
-			}
-			ret = pthread_attr_destroy(&thread_attributes);
-			if (unlikely(ret))
-			{
-				errno = ret;
-				PERROR_AND_GOTO_CLOSEFD("pthread_attr_destroy", client)
+				pthread_t packet_sender_thread;
+				ret = pthread_create(&packet_sender_thread, &thread_attributes, packet_sender, thread_arguments);
+				if (unlikely(ret))
+				{
+					errno = ret;
+					PERROR_AND_GOTO_DESTROY("pthread_create", client_endpoint)
+				}
+				if (unlikely(sem_wait(p_client_endpoint_semaphore) == -1))
+					PERROR_AND_GOTO_DESTROY("sem_wait", client_endpoint)
+				if (unlikely(sem_wait(p_client_endpoint_semaphore) == -1))
+					PERROR_AND_GOTO_DESTROY("sem_wait", client_endpoint)
+				free(p_client_endpoint);
 			}
 		}
 		if (unlikely(close(client_endpoint) == -1))
-			PERROR_AND_GOTO_CLOSEFD("close", server)
+			PERROR_AND_GOTO_DESTROY("close", server_endpoint)
 		if (unlikely(close(server_endpoint) == -1)) PERROR_AND_EXIT("close")
+		ret = pthread_attr_destroy(&thread_attributes);
+		if (unlikely(ret))
+		{
+			errno = ret;
+			PERROR_AND_GOTO_DESTROY("pthread_attr_destroy", client_endpoint)
+		}
 		return EXIT_SUCCESS;
-clientclosefd:
+destroy_client_endpoint:
 		if (unlikely(close(client_endpoint) == -1)) perror("close");
 	}
-serverclosefd:
+destroy_server_endpoint:
 	if (unlikely(close(server_endpoint) == -1)) perror("close");
+destroy_thread_attributes:
+	ret = pthread_attr_destroy(&thread_attributes);
+	if (unlikely(ret))
+	{
+		errno = ret;
+		perror("pthread_attr_destroy");
+	}
 	return EXIT_FAILURE;
 }
