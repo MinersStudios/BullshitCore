@@ -26,18 +26,18 @@
 #define MAX_CONNECTIONS 15
 #define FAVICON
 
-typedef struct
+struct ThreadArguments
 {
 	int *p_client_endpoint;
 	sem_t *p_client_endpoint_semaphore;
-} ThreadArguments;
+};
 
 static void *
 packet_receiver(void * restrict thread_arguments)
 {
 	{
-		const int client_endpoint = *((ThreadArguments*)thread_arguments)->p_client_endpoint;
-		if (unlikely(sem_post(((ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
+		const int client_endpoint = *((struct ThreadArguments*)thread_arguments)->p_client_endpoint;
+		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
 			goto clear_stack_receiver;
 		enum State current_state = State_Handshaking;
 		Boolean compression_enabled = false;
@@ -160,8 +160,8 @@ static void *
 packet_sender(void * restrict thread_arguments)
 {
 	{
-		const int client_endpoint = *((ThreadArguments*)thread_arguments)->p_client_endpoint;
-		if (unlikely(sem_post(((ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
+		const int client_endpoint = *((struct ThreadArguments*)thread_arguments)->p_client_endpoint;
+		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
 			goto get_closed_sender;
 	}
 get_closed_sender:
@@ -230,10 +230,10 @@ main(void)
 				if (unlikely(!p_client_endpoint))
 					PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 				*p_client_endpoint = client_endpoint;
-				void *thread_arguments = malloc(sizeof p_client_endpoint + sizeof p_client_endpoint_semaphore);
+				void *thread_arguments = malloc(sizeof(struct ThreadArguments));
 				if (unlikely(!thread_arguments))
 					PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-				*(ThreadArguments*)thread_arguments = (ThreadArguments){ p_client_endpoint, p_client_endpoint_semaphore };
+				*(struct ThreadArguments*)thread_arguments = (struct ThreadArguments){ p_client_endpoint, p_client_endpoint_semaphore };
 				pthread_t packet_receiver_thread;
 				ret = pthread_create(&packet_receiver_thread, &thread_attributes, packet_receiver, thread_arguments);
 				if (unlikely(ret))
