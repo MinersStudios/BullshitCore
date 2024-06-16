@@ -9,9 +9,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "global_macros.h"
-#include "log.h"
-#include "network.h"
+#include "source/global_macros.h"
+#include "api/log.h"
+#include "api/network.h"
 
 #define MINECRAFT_VERSION "1.20.4"
 #define PROTOCOL_VERSION 765

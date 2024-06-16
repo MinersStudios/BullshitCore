@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "global_macros.h"
-#include "network.h"
+#include "api/network.h"
 
 VarInt
 bullshitcore_network_varint_encode(int32_t value)
