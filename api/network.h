@@ -106,6 +106,7 @@ enum State
 	State_Handshaking,
 	State_Status,
 	State_Login,
+	State_Transfer,
 	State_Configuration,
 	State_Play
 };
