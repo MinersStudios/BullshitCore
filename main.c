@@ -13,8 +13,8 @@
 #include "api/log.h"
 #include "api/network.h"
 
-#define MINECRAFT_VERSION "1.20.4"
-#define PROTOCOL_VERSION 765
+#define MINECRAFT_VERSION "1.21"
+#define PROTOCOL_VERSION 767
 #define PROTOCOL_VERSION_STRING EXPAND_AND_STRINGIFY(PROTOCOL_VERSION)
 #define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
 #define THREAD_STACK_SIZE 8388608
@@ -81,6 +81,7 @@ packet_receiver(void * restrict thread_arguments)
 						case STATUSREQUEST_PACKET:
 						{
 							size_t mybuffer_offset = 0;
+							// TODO: Sanitise input (implement it after testing)
 							const char * const text = "{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" PROTOCOL_VERSION_STRING "},\"description\":{\"text\":\"BullshitCore is up and running!\",\"favicon\":\"" FAVICON "\"}}";
 							const size_t text_length = strlen(text);
 							const JSONTextComponent packet_payload =
@@ -131,6 +132,10 @@ packet_receiver(void * restrict thread_arguments)
 					break;
 				}
 				case State_Login:
+				{
+					break;
+				}
+				case State_Transfer:
 				{
 					break;
 				}
