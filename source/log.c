@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "api/log.h"
+#include "log.h"
 
 // TODO: Perform logging in a separate thread
 
