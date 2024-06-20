@@ -9,9 +9,9 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "source/global_macros.h"
-#include "api/log.h"
-#include "api/network.h"
+#include "global_macros.h"
+#include "log.h"
+#include "network.h"
 
 #define MINECRAFT_VERSION "1.21"
 #define PROTOCOL_VERSION 767
@@ -30,6 +30,8 @@ struct ThreadArguments
 {
 	int *p_client_endpoint;
 	sem_t *p_client_endpoint_semaphore;
+	uint8_t *interthread_buffer;
+	pthread_mutex_t *interthread_buffer_mutex;
 };
 
 static void *
