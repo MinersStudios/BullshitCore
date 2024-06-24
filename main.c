@@ -26,6 +26,9 @@
 #define MAX_CONNECTIONS 15
 #define FAVICON
 
+// It is all pointers??!
+// Always has been.
+// TODO: Escalate further.
 struct ThreadArguments
 {
 	int *p_client_endpoint;
@@ -150,7 +153,9 @@ packet_receiver(void * restrict thread_arguments)
 					break;
 				}
 			}
+#ifndef NDEBUG
 			bullshitcore_log_log("looped");
+#endif
 		}
 	}
 get_closed_receiver:
