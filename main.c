@@ -3,7 +3,6 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
-#include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,13 +25,9 @@
 #define MAX_CONNECTIONS 15
 #define FAVICON
 
-// It is all pointers??!
-// Always has been.
-// TODO: Escalate further.
 struct ThreadArguments
 {
-	int *p_client_endpoint;
-	sem_t *p_client_endpoint_semaphore;
+	int client_endpoint;
 	uint8_t *interthread_buffer;
 	pthread_mutex_t *interthread_buffer_mutex;
 };
@@ -41,9 +36,7 @@ static void *
 packet_receiver(void * restrict thread_arguments)
 {
 	{
-		const int client_endpoint = *((struct ThreadArguments*)thread_arguments)->p_client_endpoint;
-		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
-			goto clear_stack_receiver;
+		const int client_endpoint = ((struct ThreadArguments*)thread_arguments)->client_endpoint;
 		enum State current_state = State_Handshaking;
 		Boolean compression_enabled = false;
 		uint8_t buffer[PACKET_MAXSIZE];
@@ -172,9 +165,7 @@ static void *
 packet_sender(void * restrict thread_arguments)
 {
 	{
-		const int client_endpoint = *((struct ThreadArguments*)thread_arguments)->p_client_endpoint;
-		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->p_client_endpoint_semaphore) == -1))
-			goto get_closed_sender;
+		const int client_endpoint = ((struct ThreadArguments*)thread_arguments)->client_endpoint;
 	}
 get_closed_sender:
 	return NULL;
@@ -202,11 +193,6 @@ main(void)
 		errno = ret;
 		PERROR_AND_GOTO_DESTROY("pthread_attr_setstacksize", thread_attributes)
 	}
-	sem_t *p_client_endpoint_semaphore = malloc(sizeof *p_client_endpoint_semaphore);
-	if (unlikely(!p_client_endpoint_semaphore))
-		PERROR_AND_GOTO_DESTROY("malloc", thread_attributes)
-	if (unlikely(sem_init(p_client_endpoint_semaphore, 0, 0) == -1))
-		PERROR_AND_GOTO_DESTROY("sem_init", thread_attributes)
 	const int server_endpoint = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (unlikely(server_endpoint == -1)) PERROR_AND_EXIT("socket")
 	if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &(const int){ 1 }, sizeof(int)) == -1))
@@ -238,14 +224,10 @@ main(void)
 				if (unlikely(client_endpoint == -1))
 					PERROR_AND_GOTO_DESTROY("accept", server_endpoint)
 				bullshitcore_log_log("Connection is established!");
-				int * const p_client_endpoint = malloc(sizeof client_endpoint);
-				if (unlikely(!p_client_endpoint))
-					PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-				*p_client_endpoint = client_endpoint;
-				void *thread_arguments = malloc(sizeof(struct ThreadArguments));
+				struct ThreadArguments *thread_arguments = malloc(sizeof *thread_arguments);
 				if (unlikely(!thread_arguments))
 					PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-				*(struct ThreadArguments*)thread_arguments = (struct ThreadArguments){ p_client_endpoint, p_client_endpoint_semaphore };
+				*thread_arguments = (struct ThreadArguments){ client_endpoint };
 				pthread_t packet_receiver_thread;
 				ret = pthread_create(&packet_receiver_thread, &thread_attributes, packet_receiver, thread_arguments);
 				if (unlikely(ret))
@@ -260,11 +242,6 @@ main(void)
 					errno = ret;
 					PERROR_AND_GOTO_DESTROY("pthread_create", client_endpoint)
 				}
-				if (unlikely(sem_wait(p_client_endpoint_semaphore) == -1))
-					PERROR_AND_GOTO_DESTROY("sem_wait", client_endpoint)
-				if (unlikely(sem_wait(p_client_endpoint_semaphore) == -1))
-					PERROR_AND_GOTO_DESTROY("sem_wait", client_endpoint)
-				free(p_client_endpoint);
 			}
 		}
 		if (unlikely(close(client_endpoint) == -1))
