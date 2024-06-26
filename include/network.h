@@ -112,12 +112,12 @@ enum State
 };
 enum HandshakePacket
 {
-	HANDSHAKE_PACKET
+	Packet_Handshake
 };
 enum StatusPacket
 {
-	STATUSREQUEST_PACKET,
-	PINGREQUEST_PACKET
+	Packet_Status_Request,
+	Packet_Status_Ping_Request
 };
 
 VarInt bullshitcore_network_varint_encode(int32_t value);
