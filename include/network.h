@@ -2,67 +2,23 @@
 #define BULLSHITCORE_NETWORK
 
 #include <stdint.h>
+#include "nbt.h"
 
 typedef _Bool Boolean;
 #define true 1
 #define false 0
-typedef uint8_t *VarInt;
-typedef uint8_t *VarLong;
+typedef int8_t VarInt;
+typedef int8_t VarLong;
 typedef struct
 {
-	VarInt length;
-	const char *contents;
+	const VarInt *length;
+	const uint8_t *contents;
 } String;
-enum TAGType
-{
-	TAGType_End,
-	TAGType_Byte,
-	TAGType_Short,
-	TAGType_Int,
-	TAGType_Long,
-	TAGType_Float,
-	TAGType_Double,
-	TAGType_ByteArray,
-	TAGType_String,
-	TAGType_List,
-	TAGType_Compound,
-	TAGType_IntArray,
-	TAGType_LongArray
-};
-typedef int8_t TAG_Byte;
-typedef int16_t TAG_Short;
-typedef int32_t TAG_Int;
-typedef int64_t TAG_Long;
-typedef float TAG_Float;
-typedef double TAG_Double;
 typedef struct
 {
-	uint32_t length;
-	int8_t contents[];
-} TAG_Byte_Array;
-typedef struct
-{
-	uint16_t length;
-	uint8_t *contents;
-} TAG_String;
-#define TAG_List(T, length) T[length]
-#define TAG_Compound(T) T[]
-typedef struct
-{
-	uint32_t length;
-	uint32_t contents[];
-} TAG_Int_Array;
-typedef struct
-{
-	uint32_t length;
-	uint64_t contents[];
-} TAG_Long_Array;
-typedef struct
-{
-	uint8_t tag_type;
-	TAG_String name;
-	void *payload;
-} NBT;
+	size_t length;
+	const uint32_t *contents;
+} UnicodeString;
 typedef NBT TextComponent;
 typedef String JSONTextComponent;
 #define JSONTEXTCOMPONENT_MAXSIZE 262144
@@ -71,13 +27,13 @@ typedef String Identifier;
 typedef struct
 {
 	uint8_t index;
-	VarInt type;
+	VarInt *type;
 	void *value;
 } EntityMetadata[];
 typedef struct
 {
 	Boolean present;
-	VarInt item;
+	VarInt *item;
 	uint8_t item_count;
 	NBT NBT;
 } Slot;
@@ -86,20 +42,20 @@ typedef uint8_t Angle;
 typedef uint64_t UUID[2];
 typedef struct
 {
-	VarInt length;
+	VarInt *length;
 	uint64_t data[];
 } BitSet;
 typedef uint8_t FixedBitSet[];
 typedef struct
 {
-	VarInt length;
-	VarInt packet_identifier;
+	VarInt *length;
+	VarInt *packet_identifier;
 } PacketHeader;
 typedef struct
 {
-	VarInt packet_length;
-	VarInt data_length;
-	VarInt packet_identifier;
+	VarInt *packet_length;
+	VarInt *data_length;
+	VarInt *packet_identifier;
 } CompressedPacketHeader;
 enum State
 {
@@ -110,19 +66,77 @@ enum State
 	State_Configuration,
 	State_Play
 };
-enum HandshakePacket
+enum Packet_Handshake
 {
 	Packet_Handshake
 };
-enum StatusPacket
+enum Packet_Status_Client
 {
-	Packet_Status_Request,
-	Packet_Status_Ping_Request
+	Packet_Status_Client_Request,
+	Packet_Status_Client_Ping_Request
+};
+enum Packet_Status_Server
+{
+	Packet_Status_Server_Response,
+	Packet_Status_Server_Ping_Response
+};
+enum Packet_Login_Client
+{
+	Packet_Login_Client_Login_Start,
+	Packet_Login_Client_Encryption_Response,
+	Packet_Login_Client_Login_Plugin_Response,
+	Packet_Login_Client_Login_Acknowledged,
+	Packet_Login_Client_Cookie_Response
+};
+enum Packet_Login_Server
+{
+	Packet_Login_Server_Disconnect,
+	Packet_Login_Server_Encryption_Request,
+	Packet_Login_Server_Login_Success,
+	Packet_Login_Server_Set_Compression,
+	Packet_Login_Server_Login_Plugin_Request,
+	Packet_Login_Server_Cookie_Request
+};
+enum Packet_Configuration_Client
+{
+	Packet_Configuration_Client_Client_Information,
+	Packet_Configuration_Client_Cookie_Response,
+	Packet_Configuration_Client_Plugin_Message,
+	Packet_Configuration_Client_Finish_Configuration_Acknowledge,
+	Packet_Configuration_Client_Keep_Alive,
+	Packet_Configuration_Client_Pong, // pog
+	Packet_Configuration_Client_Resource_Pack_Response,
+	Packet_Configuration_Client_Known_Packs
+};
+enum Packet_Configuration_Server
+{
+	Packet_Configuration_Server_Cookie_Request,
+	Packet_Configuration_Server_Plugin_Message,
+	Packet_Configuration_Server_Disconnect,
+	Packet_Configuration_Server_Finish_Configuration,
+	Packet_Configuration_Server_Keep_Alive,
+	Packet_Configuration_Server_Ping,
+	Packet_Configuration_Server_Reset_Chat,
+	Packet_Configuration_Server_Registry_Data,
+	Packet_Configuration_Server_Remove_Resource_Pack,
+	Packet_Configuration_Server_Add_Resource_Pack,
+	Packet_Configuration_Server_Store_Cookie,
+	Packet_Configuration_Server_Transfer,
+	Packet_Configuration_Server_Feature_Flags,
+	Packet_Configuration_Server_Update_Tags,
+	Packet_Configuration_Server_Known_Packs,
+	Packet_Configuration_Server_Custom_Report_Details,
+	Packet_Configuration_Server_Server_Links
+};
+enum Packet_Play_Server
+{
+	Packet_Play_Server_Login = 0x2B
 };
 
-VarInt bullshitcore_network_varint_encode(int32_t value);
-int32_t bullshitcore_network_varint_decode(VarInt restrict varint, size_t * restrict bytes);
-VarLong bullshitcore_network_varlong_encode(int64_t value);
-int64_t bullshitcore_network_varlong_decode(VarLong restrict varlong, size_t * restrict bytes);
+VarInt *bullshitcore_network_varint_encode(uint32_t value);
+int32_t bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes);
+VarLong *bullshitcore_network_varlong_encode(uint64_t value);
+int64_t bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * restrict bytes);
+String bullshitcore_network_string_java_utf8_encode(const UnicodeString codepoints);
 
 #endif
