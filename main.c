@@ -5,6 +5,7 @@
 #include <netinet/tcp.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -316,10 +317,10 @@ packet_receiver(void *thread_arguments)
 							for (size_t dimension = 0; dimension < NUMOF(dimensions); ++dimension)
 							{
 								bullshitcore_network_varint_decode(dimensions[dimension].length, &dimension_length_length);
-								memcpy(interthread_buffer + interthread_buffer_offset, dimensions + dimension, dimension_length_length);
+								memcpy(interthread_buffer + interthread_buffer_offset, *(const VarInt **)(dimensions + dimension), dimension_length_length);
 								interthread_buffer_offset += dimension_length_length;
 								dimension_length = strlen((const char *)dimensions[dimension].contents);
-								memcpy(interthread_buffer + interthread_buffer_offset, dimensions + dimension + dimension_length_length, dimension_length);
+								memcpy(interthread_buffer + interthread_buffer_offset, *(const uint8_t **)((const uint8_t *)(dimensions + dimension) + offsetof(Identifier, contents)), dimension_length);
 								interthread_buffer_offset += dimension_length;
 							}
 							const VarInt * const max_players_varint = bullshitcore_network_varint_encode(MAX_PLAYERS);
@@ -346,10 +347,10 @@ packet_receiver(void *thread_arguments)
 							memcpy(interthread_buffer + interthread_buffer_offset, dimension_type_varint, dimension_type_varint_length);
 							interthread_buffer_offset += dimension_type_varint_length;
 							bullshitcore_network_varint_decode(dimensions[0].length, &dimension_length_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, dimensions, dimension_length_length);
+							memcpy(interthread_buffer + interthread_buffer_offset, *(const VarInt **)dimensions, dimension_length_length);
 							interthread_buffer_offset += dimension_length_length;
 							dimension_length = strlen((const char *)dimensions[0].contents);
-							memcpy(interthread_buffer + interthread_buffer_offset, dimensions + dimension_length_length, dimension_length);
+							memcpy(interthread_buffer + interthread_buffer_offset, *(const uint8_t **)((const uint8_t *)dimensions + offsetof(Identifier, contents)), dimension_length);
 							interthread_buffer_offset += dimension_length;
 							int64_t seed_hash = -1916599016670012116;
 							if (unlikely(wc_Sha256Hash((const byte *)&seed_hash, sizeof seed_hash, (byte *)&seed_hash)))
@@ -405,10 +406,6 @@ packet_receiver(void *thread_arguments)
 						{
 							const uint32_t client_known_packs = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
-							for (size_t pack = 0; pack < client_known_packs; ++pack)
-							{
-								// ignore them, who cares
-							}
 							ret = pthread_mutex_lock(interthread_buffer_mutex);
 							if (unlikely(ret))
 							{

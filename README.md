@@ -7,7 +7,7 @@ MinersStudios' own Minecraft server implementation.
 Get a copy of the software:
 
 ```sh
-git clone --depth 1 --single-branch https://github.com/PackmanDude/BullshitCore.git
+git clone --depth 1 --single-branch https://github.com/MinersStudios/BullshitCore.git
 ```
 
 Change working directory:

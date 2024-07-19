@@ -133,9 +133,9 @@ enum Packet_Play_Server
 	Packet_Play_Server_Login = 0x2B
 };
 
-VarInt *bullshitcore_network_varint_encode(uint32_t value);
+VarInt *bullshitcore_network_varint_encode(int32_t value);
 int32_t bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes);
-VarLong *bullshitcore_network_varlong_encode(uint64_t value);
+VarLong *bullshitcore_network_varlong_encode(int64_t value);
 int64_t bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * restrict bytes);
 String bullshitcore_network_string_java_utf8_encode(const UnicodeString codepoints);
 

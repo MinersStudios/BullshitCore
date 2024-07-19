@@ -5,7 +5,7 @@
 #include "network.h"
 
 VarInt *
-bullshitcore_network_varint_encode(uint32_t value)
+bullshitcore_network_varint_encode(int32_t value)
 {
 	return bullshitcore_network_varlong_encode(value);
 }
@@ -13,11 +13,11 @@ bullshitcore_network_varint_encode(uint32_t value)
 int32_t
 bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes)
 {
-	uint32_t value = 0;
+	int32_t value = 0;
 	size_t i = 0;
 	for (;i < 5; ++i)
 	{
-		const uint8_t varint_byte = varint[i];
+		const int8_t varint_byte = varint[i];
 		value |= (varint_byte & 0x7F) << 7 * i;
 		if (!(varint_byte & 0x80)) break;
 	}
@@ -26,7 +26,7 @@ bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * res
 }
 
 VarLong *
-bullshitcore_network_varlong_encode(uint64_t value)
+bullshitcore_network_varlong_encode(int64_t value)
 {
 	uint_fast8_t bytes = 1;
 	while (value >> 7 * bytes) ++bytes;
@@ -40,11 +40,11 @@ bullshitcore_network_varlong_encode(uint64_t value)
 int64_t
 bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * restrict bytes)
 {
-	uint64_t value = 0;
+	int64_t value = 0;
 	size_t i = 0;
 	for (;i < 10; ++i)
 	{
-		const uint8_t varlong_byte = varlong[i];
+		const int8_t varlong_byte = varlong[i];
 		value |= (varlong_byte & 0x7F) << 7 * i;
 		if (!(varlong_byte & 0x80)) break;
 	}
