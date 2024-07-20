@@ -19,7 +19,6 @@
 
 #define MINECRAFT_VERSION "1.21"
 #define PROTOCOL_VERSION 767
-#define PROTOCOL_VERSION_STRING EXPAND_AND_STRINGIFY(PROTOCOL_VERSION)
 #define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
 #define THREAD_STACK_SIZE 8388608
 #define PACKET_MAXSIZE 2097151
@@ -97,7 +96,7 @@ packet_receiver(void *thread_arguments)
 						case Packet_Status_Client_Request:
 						{
 							// TODO: Sanitise input (implement it after testing)
-							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" PROTOCOL_VERSION_STRING "},\"description\":{\"text\":\"BullshitCore is up and running!\",\"favicon\":\"" FAVICON "\"}}";
+							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" EXPAND_AND_STRINGIFY(PROTOCOL_VERSION) "},\"players\":{\"max\":" EXPAND_AND_STRINGIFY(MAX_PLAYERS) ",\"online\":0},\"description\":{\"text\":\"BullshitCore is up and running!\",\"favicon\":\"" FAVICON "\"}}";
 							const size_t text_length = strlen((const char *)text);
 							const JSONTextComponent packet_payload =
 							{
@@ -376,6 +375,28 @@ packet_receiver(void *thread_arguments)
 							interthread_buffer_offset += sizeof(Boolean);
 							interthread_buffer[0] = interthread_buffer_offset - 1;
 							*interthread_buffer_length = interthread_buffer_offset;
+							ret = pthread_cond_signal(interthread_buffer_condition);
+							if (unlikely(ret))
+							{
+								errno = ret;
+								goto clear_stack_receiver;
+							}
+							ret = pthread_mutex_unlock(interthread_buffer_mutex);
+							if (unlikely(ret))
+							{
+								errno = ret;
+								goto clear_stack_receiver;
+							}
+							ret = pthread_mutex_lock(interthread_buffer_mutex);
+							if (unlikely(ret))
+							{
+								errno = ret;
+								goto clear_stack_receiver;
+							}
+							*interthread_buffer_length = 3;
+							interthread_buffer[0] = 2;
+							interthread_buffer[1] = Packet_Play_Server_Game_Event;
+							interthread_buffer[2] = 13;
 							ret = pthread_cond_signal(interthread_buffer_condition);
 							if (unlikely(ret))
 							{

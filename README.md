@@ -16,7 +16,7 @@ Change working directory:
 cd BullshitCore
 ```
 
-Run build script:
+Run the build script:
 
 ```sh
 ./build.sh [additional build arguments]
@@ -29,3 +29,8 @@ Run build script:
 - [Berkeley DB](https://www.oracle.com/database/technologies/related/berkeleydb.html)
 - [wolfSSL](https://www.wolfssl.com)
 - [zlib](https://www.zlib.net)
+
+### Windows support
+
+Not officially supported, but you may use [MSYS2](https://www.msys2.org)
+environment to build an executable yourself at your own risk.

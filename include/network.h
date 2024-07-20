@@ -130,6 +130,7 @@ enum Packet_Configuration_Server
 };
 enum Packet_Play_Server
 {
+	Packet_Play_Server_Game_Event = 0x22,
 	Packet_Play_Server_Login = 0x2B
 };
 
