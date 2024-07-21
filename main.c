@@ -228,10 +228,36 @@ packet_receiver(void *thread_arguments)
 								errno = ret;
 								goto clear_stack_receiver;
 							}
-							*interthread_buffer_length = 3;
-							interthread_buffer[0] = 2;
 							interthread_buffer[1] = Packet_Configuration_Server_Known_Packs;
-							interthread_buffer[2] = 0;
+							size_t interthread_buffer_offset = 2;
+							const VarInt * const known_packs_count_varint = bullshitcore_network_varint_encode(1);
+							uint8_t known_packs_count_varint_length;
+							bullshitcore_network_varint_decode(known_packs_count_varint, &known_packs_count_varint_length);
+							memcpy(interthread_buffer + interthread_buffer_offset, known_packs_count_varint, known_packs_count_varint_length);
+							interthread_buffer_offset += known_packs_count_varint_length;
+							const String namespace = { bullshitcore_network_varint_encode(strlen("minecraft")), (const uint8_t *)"minecraft" };
+							const String identifier = { bullshitcore_network_varint_encode(strlen("core")), (const uint8_t *)"core" };
+							const String version = { bullshitcore_network_varint_encode(strlen("1.21")), (const uint8_t *)"1.21" };
+							uint8_t namespace_length_varint_length;
+							bullshitcore_network_varint_decode(namespace.length, &namespace_length_varint_length);
+							uint8_t identifier_length_varint_length;
+							bullshitcore_network_varint_decode(identifier.length, &identifier_length_varint_length);
+							uint8_t version_length_varint_length;
+							bullshitcore_network_varint_decode(version.length, &version_length_varint_length);
+							memcpy(interthread_buffer + interthread_buffer_offset, namespace.length, namespace_length_varint_length);
+							interthread_buffer_offset += namespace_length_varint_length;
+							memcpy(interthread_buffer + interthread_buffer_offset, namespace.contents, strlen((const char *)namespace.contents));
+							interthread_buffer_offset += strlen((const char *)namespace.contents);
+							memcpy(interthread_buffer + interthread_buffer_offset, identifier.length, identifier_length_varint_length);
+							interthread_buffer_offset += identifier_length_varint_length;
+							memcpy(interthread_buffer + interthread_buffer_offset, identifier.contents, strlen((const char *)identifier.contents));
+							interthread_buffer_offset += strlen((const char *)identifier.contents);
+							memcpy(interthread_buffer + interthread_buffer_offset, version.length, version_length_varint_length);
+							interthread_buffer_offset += version_length_varint_length;
+							memcpy(interthread_buffer + interthread_buffer_offset, version.contents, strlen((const char *)version.contents));
+							interthread_buffer_offset += strlen((const char *)version.contents);
+							interthread_buffer[0] = interthread_buffer_offset - 1;
+							*interthread_buffer_length = interthread_buffer_offset;
 							ret = pthread_cond_signal(interthread_buffer_condition);
 							if (unlikely(ret))
 							{
@@ -393,10 +419,11 @@ packet_receiver(void *thread_arguments)
 								errno = ret;
 								goto clear_stack_receiver;
 							}
-							*interthread_buffer_length = 3;
-							interthread_buffer[0] = 2;
+							*interthread_buffer_length = 7;
+							interthread_buffer[0] = 6;
 							interthread_buffer[1] = Packet_Play_Server_Game_Event;
-							interthread_buffer[2] = 13;
+							interthread_buffer[2] = (uint8_t)13;
+							memcpy(interthread_buffer + 3, &(float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float));
 							ret = pthread_cond_signal(interthread_buffer_condition);
 							if (unlikely(ret))
 							{
