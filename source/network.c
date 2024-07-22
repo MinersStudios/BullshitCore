@@ -11,7 +11,7 @@ bullshitcore_network_varint_encode(int32_t value)
 }
 
 int32_t
-bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes)
+bullshitcore_network_varint_decode(const VarInt * const restrict varint, uint8_t * restrict bytes)
 {
 	int32_t value = 0;
 	size_t i = 0;
@@ -38,7 +38,7 @@ bullshitcore_network_varlong_encode(int64_t value)
 }
 
 int64_t
-bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * restrict bytes)
+bullshitcore_network_varlong_decode(const VarLong * const restrict varlong, uint8_t * restrict bytes)
 {
 	int64_t value = 0;
 	size_t i = 0;

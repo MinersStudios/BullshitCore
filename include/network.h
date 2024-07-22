@@ -131,13 +131,14 @@ enum Packet_Configuration_Server
 enum Packet_Play_Server
 {
 	Packet_Play_Server_Game_Event = 0x22,
-	Packet_Play_Server_Login = 0x2B
+	Packet_Play_Server_Login = 0x2B,
+	Packet_Play_Server_Synchronise_Player_Position = 0x40
 };
 
 VarInt *bullshitcore_network_varint_encode(int32_t value);
-int32_t bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes);
+int32_t bullshitcore_network_varint_decode(const VarInt * const restrict varint, uint8_t * restrict bytes);
 VarLong *bullshitcore_network_varlong_encode(int64_t value);
-int64_t bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * restrict bytes);
+int64_t bullshitcore_network_varlong_decode(const VarLong * const restrict varlong, uint8_t * restrict bytes);
 String bullshitcore_network_string_java_utf8_encode(const UnicodeString codepoints);
 
 #endif
