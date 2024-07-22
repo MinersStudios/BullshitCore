@@ -436,6 +436,45 @@ packet_receiver(void *thread_arguments)
 								errno = ret;
 								goto clear_stack_receiver;
 							}
+							ret = pthread_mutex_lock(interthread_buffer_mutex);
+							if (unlikely(ret))
+							{
+								errno = ret;
+								goto clear_stack_receiver;
+							}
+							interthread_buffer[1] = Packet_Play_Server_Synchronise_Player_Position;
+							interthread_buffer_offset = 2;
+							memcpy(interthread_buffer + interthread_buffer_offset, &(double){ 0 }, sizeof(double) >= 8 ? 8 : sizeof(double));
+							interthread_buffer_offset += sizeof(double) >= 8 ? 8 : sizeof(double);
+							memcpy(interthread_buffer + interthread_buffer_offset, &(double){ 128 }, sizeof(double) >= 8 ? 8 : sizeof(double));
+							interthread_buffer_offset += sizeof(double) >= 8 ? 8 : sizeof(double);
+							memcpy(interthread_buffer + interthread_buffer_offset, &(double){ 0 }, sizeof(double) >= 8 ? 8 : sizeof(double));
+							interthread_buffer_offset += sizeof(double) >= 8 ? 8 : sizeof(double);
+							memcpy(interthread_buffer + interthread_buffer_offset, &(float){ 0 }, sizeof(float) >= 8 ? 8 : sizeof(float));
+							interthread_buffer_offset += sizeof(float) >= 8 ? 8 : sizeof(float);
+							memcpy(interthread_buffer + interthread_buffer_offset, &(float){ 0 }, sizeof(float) >= 8 ? 8 : sizeof(float));
+							interthread_buffer_offset += sizeof(float) >= 8 ? 8 : sizeof(float);
+							interthread_buffer[interthread_buffer_offset] = (int8_t)0;
+							++interthread_buffer_offset;
+							const VarInt * const teleportation_identifier_varint = bullshitcore_network_varint_encode(0);
+							uint8_t teleportation_identifier_varint_length;
+							bullshitcore_network_varint_decode(teleportation_identifier_varint, &teleportation_identifier_varint_length);
+							memcpy(interthread_buffer + interthread_buffer_offset, teleportation_identifier_varint, teleportation_identifier_varint_length);
+							interthread_buffer_offset += teleportation_identifier_varint_length;
+							interthread_buffer[0] = interthread_buffer_offset - 1;
+							*interthread_buffer_length = interthread_buffer_offset;
+							ret = pthread_cond_signal(interthread_buffer_condition);
+							if (unlikely(ret))
+							{
+								errno = ret;
+								goto clear_stack_receiver;
+							}
+							ret = pthread_mutex_unlock(interthread_buffer_mutex);
+							if (unlikely(ret))
+							{
+								errno = ret;
+								goto clear_stack_receiver;
+							}
 							break;
 						}
 						case Packet_Configuration_Client_Keep_Alive:
