@@ -15,9 +15,10 @@ bullshitcore_network_varint_decode(const VarInt * const restrict varint, uint8_t
 {
 	int32_t value = 0;
 	size_t i = 0;
+	int8_t varint_byte;
 	for (;i < 5; ++i)
 	{
-		const int8_t varint_byte = varint[i];
+		varint_byte = varint[i];
 		value |= (varint_byte & 0x7F) << 7 * i;
 		if (!(varint_byte & 0x80)) break;
 	}
@@ -42,9 +43,10 @@ bullshitcore_network_varlong_decode(const VarLong * const restrict varlong, uint
 {
 	int64_t value = 0;
 	size_t i = 0;
+	int8_t varlong_byte;
 	for (;i < 10; ++i)
 	{
-		const int8_t varlong_byte = varlong[i];
+		varlong_byte = varlong[i];
 		value |= (varlong_byte & 0x7F) << 7 * i;
 		if (!(varlong_byte & 0x80)) break;
 	}

@@ -10,7 +10,7 @@ Get a copy of the software:
 git clone --depth 1 --single-branch https://github.com/MinersStudios/BullshitCore.git
 ```
 
-Change working directory:
+Change the working directory:
 
 ```sh
 cd BullshitCore
