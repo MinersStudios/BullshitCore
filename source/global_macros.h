@@ -17,7 +17,8 @@
 #define PERROR_AND_EXIT(s) { perror(s); exit(EXIT_FAILURE); }
 #define EXPAND_AND_STRINGIFY(x) STRINGIFY(x)
 #define STRINGIFY(x) #x
-#define BYTES(bits) ((bits + CHAR_BIT - 1) / CHAR_BIT)
 #define NUMOF(array) (sizeof array / sizeof *array)
+#define BYTES(bits) ((bits + CHAR_BIT - 1) / CHAR_BIT)
+#define OCTETS(bytes) ((bytes * CHAR_BIT + 7) / 8)
 
 #endif

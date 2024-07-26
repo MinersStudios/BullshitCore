@@ -1,5 +1,4 @@
 #include <arpa/inet.h>
-#include <assert.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -11,6 +10,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include "global_macros.h"
 #include "log.h"
@@ -21,6 +21,41 @@
 #define PROTOCOL_VERSION 767
 #define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
 #define THREAD_STACK_SIZE 8388608
+#define SEND(...) \
+{ \
+	const uintptr_t args[] = { __VA_ARGS__ }; \
+	uint8_t *data; \
+	size_t data_length; \
+	size_t interthread_buffer_offset = 0; \
+	ret = pthread_mutex_lock(interthread_buffer_mutex); \
+	if (unlikely(ret)) \
+	{ \
+		errno = ret; \
+		goto clear_stack_receiver; \
+	} \
+	for (size_t i = 0; i < NUMOF(args); i += 2) \
+	{ \
+		data = (uint8_t *)args[i]; \
+		data_length = (size_t)args[i + 1]; \
+		memcpy(interthread_buffer + interthread_buffer_offset, data, data_length); \
+		interthread_buffer_offset += data_length; \
+	} \
+	*interthread_buffer_length = interthread_buffer_offset; \
+	ret = pthread_cond_signal(interthread_buffer_condition); \
+	if (unlikely(ret)) \
+	{ \
+		errno = ret; \
+		goto clear_stack_receiver; \
+	} \
+	ret = pthread_mutex_unlock(interthread_buffer_mutex); \
+	if (unlikely(ret)) \
+	{ \
+		errno = ret; \
+		goto clear_stack_receiver; \
+	} \
+	sleep(1); \
+}
+
 #define PACKET_MAXSIZE 2097151
 #define REGISTRY_1 "\235\f\a\030minecraft:worldgen/biome@\022minecraft:badlands\000\027minecraft:bamboo_jungle\000\027minecraft:basalt_deltas\000\017minecraft:beach\000\026minecraft:birch_forest\000\026minecraft:cherry_grove\000\024minecraft:cold_ocean\000\030minecraft:crimson_forest\000\025minecraft:dark_forest\000\031minecraft:deep_cold_ocean\000\023minecraft:deep_dark\000\033minecraft:deep_frozen_ocean\000\035minecraft:deep_lukewarm_ocean\000\024minecraft:deep_ocean\000\020minecraft:desert\000\031minecraft:dripstone_caves\000\025minecraft:end_barrens\000\027minecraft:end_highlands\000\026minecraft:end_midlands\000\031minecraft:eroded_badlands\000\027minecraft:flower_forest\000\020minecraft:forest\000\026minecraft:frozen_ocean\000\026minecraft:frozen_peaks\000\026minecraft:frozen_river\000\017minecraft:grove\000\024minecraft:ice_spikes\000\026minecraft:jagged_peaks\000\020minecraft:jungle\000\030minecraft:lukewarm_ocean\000\024minecraft:lush_caves\000\030minecraft:mangrove_swamp\000\020minecraft:meadow\000\031minecraft:mushroom_fields\000\027minecraft:nether_wastes\000\017minecraft:ocean\000!minecraft:old_growth_birch_forest\000\037minecraft:old_growth_pine_taiga\000!minecraft:old_growth_spruce_taiga\000\020minecraft:plains\000\017minecraft:river\000\021minecraft:savanna\000\031minecraft:savanna_plateau\000\033minecraft:small_end_islands\000\025minecraft:snowy_beach\000\026minecraft:snowy_plains\000\026minecraft:snowy_slopes\000\025minecraft:snowy_taiga\000\032minecraft:soul_sand_valley\000\027minecraft:sparse_jungle\000\025minecraft:stony_peaks\000\025minecraft:stony_shore\000\032minecraft:sunflower_plains\000\017minecraft:swamp\000\017minecraft:taiga\000\021minecraft:the_end\000\022minecraft:the_void\000\024minecraft:warm_ocean\000\027minecraft:warped_forest\000\032minecraft:windswept_forest\000\"minecraft:windswept_gravelly_hills\000\031minecraft:windswept_hills\000\033minecraft:windswept_savanna\000\031minecraft:wooded_badlands\000"
 #define REGISTRY_2 "\340\001\a\023minecraft:chat_type\a\016minecraft:chat\000\027minecraft:emote_command\000\036minecraft:msg_command_incoming\000\036minecraft:msg_command_outgoing\000\025minecraft:say_command\000#minecraft:team_msg_command_incoming\000#minecraft:team_msg_command_outgoing\000"
@@ -41,6 +76,7 @@
 #define MAX_PLAYERS 15
 #define PORT 25565
 #define RENDER_DISTANCE 2
+#define SIMULATION_DISTANCE 5
 
 struct ThreadArguments
 {
@@ -105,7 +141,7 @@ packet_receiver(void *thread_arguments)
 				{
 					switch (packet_identifier)
 					{
-						case Packet_Status_Client_Request:
+						case Packet_Status_Client_Status_Request:
 						{
 							// TODO: Sanitise input (implement it after testing)
 							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" EXPAND_AND_STRINGIFY(PROTOCOL_VERSION) "},\"players\":{\"max\":" EXPAND_AND_STRINGIFY(MAX_PLAYERS) ",\"online\":0},\"description\":{\"text\":\"BullshitCore is up and running!\",\"favicon\":\"" FAVICON "\"}}";
@@ -115,64 +151,39 @@ packet_receiver(void *thread_arguments)
 								bullshitcore_network_varint_encode(text_length),
 								text
 							};
-							assert(text_length <= JSONTEXTCOMPONENT_MAXSIZE);
+							if (text_length > JSONTEXTCOMPONENT_MAXSIZE) break;
 							uint8_t packet_payload_length_length;
 							bullshitcore_network_varint_decode(packet_payload.length, &packet_payload_length_length);
 							const size_t packet_length = 1 + packet_payload_length_length + text_length;
-							const VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_length);
-							uint8_t packet_length_length;
-							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_length);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							*interthread_buffer_length = packet_length_length + packet_length;
-							memcpy(interthread_buffer, packet_length_varint, packet_length_length);
-							size_t interthread_buffer_offset = packet_length_length;
-							interthread_buffer[interthread_buffer_offset] = Packet_Status_Server_Response;
-							++interthread_buffer_offset;
-							memcpy(interthread_buffer + interthread_buffer_offset, packet_payload.length, packet_payload_length_length);
-							interthread_buffer_offset += packet_length_length;
-							memcpy(interthread_buffer + interthread_buffer_offset, packet_payload.contents, text_length);
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_length);
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Status_Server_Status_Response);
+							uint8_t packet_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
+								(uintptr_t)packet_payload.length, packet_payload_length_length,
+								(uintptr_t)packet_payload.contents, text_length)
+							free(packet_payload.length);
+							free(packet_length_varint);
+							free(packet_identifier_varint);
 							break;
 						}
 						case Packet_Status_Client_Ping_Request:
 						{
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							*interthread_buffer_length = 6;
-							memcpy(interthread_buffer, buffer, 6);
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							goto get_closed_receiver;
+							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Status_Server_Ping_Response);
+							uint8_t packet_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length + 8);
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
+								(uintptr_t)buffer, 8)
+							free(packet_identifier_varint);
+							free(packet_length_varint);
+							goto close_connection;
 							break;
 						}
 					}
@@ -188,39 +199,24 @@ packet_receiver(void *thread_arguments)
 							const uint32_t username_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &username_length_length);
 							buffer_offset += username_length_length + username_length;
 							const uint32_t packet_length = username_length_length + username_length + 19;
-							const VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_length);
-							uint8_t packet_length_length;
-							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_length);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							*interthread_buffer_length = username_length_length + username_length + packet_length_length + 19;
-							memcpy(interthread_buffer, packet_length_varint, packet_length_length);
-							size_t interthread_buffer_offset = packet_length_length;
-							interthread_buffer[interthread_buffer_offset] = Packet_Login_Server_Login_Success;
-							++interthread_buffer_offset;
-							memcpy(interthread_buffer + interthread_buffer_offset, buffer + buffer_offset, 16);
-							interthread_buffer_offset += 16;
-							memcpy(interthread_buffer + interthread_buffer_offset, buffer + buffer_offset - username_length_length - username_length, username_length_length + username_length);
-							interthread_buffer_offset += username_length_length + username_length;
-							interthread_buffer[interthread_buffer_offset] = 0;
-							++interthread_buffer_offset;
-							interthread_buffer[interthread_buffer_offset] = true;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_length);
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Login_Server_Login_Success);
+							uint8_t packet_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							VarInt * const properties_count_varint = bullshitcore_network_varint_encode(0);
+							uint8_t properties_count_varint_length;
+							bullshitcore_network_varint_decode(properties_count_varint, &properties_count_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
+								(uintptr_t)(buffer + buffer_offset), 16,
+								(uintptr_t)(buffer + buffer_offset - username_length_length - username_length), username_length_length + username_length,
+								(uintptr_t)properties_count_varint, properties_count_varint_length,
+								(uintptr_t)&(Boolean){ true }, sizeof(Boolean))
+							free(packet_length_varint);
+							free(packet_identifier_varint);
+							free(properties_count_varint);
 							break;
 						}
 						case Packet_Login_Client_Encryption_Response:
@@ -234,19 +230,12 @@ packet_receiver(void *thread_arguments)
 						case Packet_Login_Client_Login_Acknowledged:
 						{
 							current_state = State_Configuration;
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							interthread_buffer[1] = Packet_Configuration_Server_Known_Packs;
-							size_t interthread_buffer_offset = 2;
-							const VarInt * const known_packs_count_varint = bullshitcore_network_varint_encode(1);
+							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Configuration_Server_Known_Packs);
+							uint8_t packet_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							VarInt * const known_packs_count_varint = bullshitcore_network_varint_encode(1);
 							uint8_t known_packs_count_varint_length;
 							bullshitcore_network_varint_decode(known_packs_count_varint, &known_packs_count_varint_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, known_packs_count_varint, known_packs_count_varint_length);
-							interthread_buffer_offset += known_packs_count_varint_length;
 							const String namespace = { bullshitcore_network_varint_encode(strlen("minecraft")), (const uint8_t *)"minecraft" };
 							const String identifier = { bullshitcore_network_varint_encode(strlen("core")), (const uint8_t *)"core" };
 							const String version = { bullshitcore_network_varint_encode(strlen("1.21")), (const uint8_t *)"1.21" };
@@ -256,32 +245,31 @@ packet_receiver(void *thread_arguments)
 							bullshitcore_network_varint_decode(identifier.length, &identifier_length_varint_length);
 							uint8_t version_length_varint_length;
 							bullshitcore_network_varint_decode(version.length, &version_length_varint_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, namespace.length, namespace_length_varint_length);
-							interthread_buffer_offset += namespace_length_varint_length;
-							memcpy(interthread_buffer + interthread_buffer_offset, namespace.contents, strlen((const char *)namespace.contents));
-							interthread_buffer_offset += strlen((const char *)namespace.contents);
-							memcpy(interthread_buffer + interthread_buffer_offset, identifier.length, identifier_length_varint_length);
-							interthread_buffer_offset += identifier_length_varint_length;
-							memcpy(interthread_buffer + interthread_buffer_offset, identifier.contents, strlen((const char *)identifier.contents));
-							interthread_buffer_offset += strlen((const char *)identifier.contents);
-							memcpy(interthread_buffer + interthread_buffer_offset, version.length, version_length_varint_length);
-							interthread_buffer_offset += version_length_varint_length;
-							memcpy(interthread_buffer + interthread_buffer_offset, version.contents, strlen((const char *)version.contents));
-							interthread_buffer_offset += strlen((const char *)version.contents);
-							interthread_buffer[0] = interthread_buffer_offset - 1;
-							*interthread_buffer_length = interthread_buffer_offset;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length
+								+ known_packs_count_varint_length
+								+ namespace_length_varint_length
+								+ strlen((const char *)namespace.contents)
+								+ identifier_length_varint_length
+								+ strlen((const char *)identifier.contents)
+								+ version_length_varint_length
+								+ strlen((const char *)version.contents));
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
+								(uintptr_t)known_packs_count_varint, known_packs_count_varint_length,
+								(uintptr_t)namespace.length, namespace_length_varint_length,
+								(uintptr_t)namespace.contents, strlen((const char *)namespace.contents),
+								(uintptr_t)identifier.length, identifier_length_varint_length,
+								(uintptr_t)identifier.contents, strlen((const char *)identifier.contents),
+								(uintptr_t)version.length, version_length_varint_length,
+								(uintptr_t)version.contents, strlen((const char *)version.contents))
+							free(packet_identifier_varint);
+							free(known_packs_count_varint);
+							free(namespace.length);
+							free(identifier.length);
+							free(version.length);
+							free(packet_length_varint);
 							break;
 						}
 						case Packet_Login_Client_Cookie_Response:
@@ -314,18 +302,9 @@ packet_receiver(void *thread_arguments)
 						case Packet_Configuration_Client_Finish_Configuration_Acknowledge:
 						{
 							current_state = State_Play;
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							interthread_buffer[1] = Packet_Play_Server_Login;
-							size_t interthread_buffer_offset = 2;
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const int32_t){ 0 }, sizeof(uint32_t));
-							interthread_buffer_offset += sizeof(uint32_t);
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ false }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
+							VarInt *packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Login);
+							uint8_t packet_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
 							const uint8_t *overworld = (const uint8_t *)"minecraft:overworld";
 							const uint8_t *nether = (const uint8_t *)"minecraft:the_nether";
 							const uint8_t *end = (const uint8_t *)"minecraft:the_end";
@@ -344,111 +323,107 @@ packet_receiver(void *thread_arguments)
 									end
 								}
 							};
-							const VarInt * const dimension_count_varint = bullshitcore_network_varint_encode(NUMOF(dimensions));
+							VarInt * const dimension_count_varint = bullshitcore_network_varint_encode(NUMOF(dimensions));
 							uint8_t dimension_count_varint_length;
 							bullshitcore_network_varint_decode(dimension_count_varint, &dimension_count_varint_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, dimension_count_varint, dimension_count_varint_length);
-							interthread_buffer_offset += dimension_count_varint_length;
 							uint8_t dimension_length_length;
 							uint8_t dimension_length;
-							for (size_t dimension = 0; dimension < NUMOF(dimensions); ++dimension)
+							size_t dimensions_total_size = 0;
+							for (size_t i = 0; i < NUMOF(dimensions); ++i)
 							{
-								bullshitcore_network_varint_decode(dimensions[dimension].length, &dimension_length_length);
-								memcpy(interthread_buffer + interthread_buffer_offset, *(const VarInt **)(dimensions + dimension), dimension_length_length);
-								interthread_buffer_offset += dimension_length_length;
-								dimension_length = strlen((const char *)dimensions[dimension].contents);
-								memcpy(interthread_buffer + interthread_buffer_offset, *(const uint8_t **)((const uint8_t *)(dimensions + dimension) + offsetof(Identifier, contents)), dimension_length);
-								interthread_buffer_offset += dimension_length;
+								bullshitcore_network_varint_decode(dimensions[i].length, &dimension_length_length);
+								dimensions_total_size += dimension_length_length + bullshitcore_network_varint_decode(dimensions[i].length, NULL);
 							}
-							const VarInt * const max_players_varint = bullshitcore_network_varint_encode(MAX_PLAYERS);
+							VarInt * const max_players_varint = bullshitcore_network_varint_encode(MAX_PLAYERS);
 							uint8_t max_players_varint_length;
 							bullshitcore_network_varint_decode(max_players_varint, &max_players_varint_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, max_players_varint, max_players_varint_length);
-							interthread_buffer_offset += max_players_varint_length;
-							const VarInt * const render_distance_varint = bullshitcore_network_varint_encode(RENDER_DISTANCE);
+							VarInt * const render_distance_varint = bullshitcore_network_varint_encode(RENDER_DISTANCE);
 							uint8_t render_distance_varint_length;
 							bullshitcore_network_varint_decode(render_distance_varint, &render_distance_varint_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, render_distance_varint, render_distance_varint_length);
-							interthread_buffer_offset += render_distance_varint_length;
-							memcpy(interthread_buffer + interthread_buffer_offset, render_distance_varint, render_distance_varint_length);
-							interthread_buffer_offset += render_distance_varint_length;
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ false }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ true }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ false }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
-							const VarInt * const dimension_type_varint = bullshitcore_network_varint_encode(0);
+							VarInt * const simulation_distance_varint = bullshitcore_network_varint_encode(SIMULATION_DISTANCE);
+							uint8_t simulation_distance_varint_length;
+							bullshitcore_network_varint_decode(simulation_distance_varint, &simulation_distance_varint_length);
+							VarInt * const dimension_type_varint = bullshitcore_network_varint_encode(0);
 							uint8_t dimension_type_varint_length;
 							bullshitcore_network_varint_decode(dimension_type_varint, &dimension_type_varint_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, dimension_type_varint, dimension_type_varint_length);
-							interthread_buffer_offset += dimension_type_varint_length;
 							bullshitcore_network_varint_decode(dimensions[0].length, &dimension_length_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, *(const VarInt **)dimensions, dimension_length_length);
-							interthread_buffer_offset += dimension_length_length;
 							dimension_length = strlen((const char *)dimensions[0].contents);
-							memcpy(interthread_buffer + interthread_buffer_offset, *(const uint8_t **)((const uint8_t *)dimensions + offsetof(Identifier, contents)), dimension_length);
-							interthread_buffer_offset += dimension_length;
-							int64_t seed_hash = -1916599016670012116;
-							if (unlikely(wc_Sha256Hash((const byte *)&seed_hash, sizeof seed_hash, (byte *)&seed_hash)))
-							{} // should not fail
-							memcpy(interthread_buffer + interthread_buffer_offset, &seed_hash, sizeof seed_hash);
-							interthread_buffer_offset += sizeof seed_hash;
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const uint8_t){ 3 }, sizeof(uint8_t));
-							interthread_buffer_offset += sizeof(uint8_t);
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const int8_t){ -1 }, sizeof(int8_t));
-							interthread_buffer_offset += sizeof(int8_t);
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ false }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ false }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ false }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
-							const VarInt * const portal_cooldown_varint = bullshitcore_network_varint_encode(0);
+							int64_t seed_hash = -1916599016670012116; // leaked government information??
+							ret = wc_Sha256Hash((const byte *)&seed_hash, sizeof seed_hash, (byte *)&seed_hash);
+							if (unlikely(ret))
+							{
+								fprintf(stderr, "wc_Sha256Hash: %s\n", wc_GetErrorString(ret));
+								goto clear_stack_receiver;
+							}
+							VarInt * const portal_cooldown_varint = bullshitcore_network_varint_encode(0);
 							uint8_t portal_cooldown_varint_length;
 							bullshitcore_network_varint_decode(portal_cooldown_varint, &portal_cooldown_varint_length);
-							memcpy(interthread_buffer + interthread_buffer_offset, portal_cooldown_varint, portal_cooldown_varint_length);
-							interthread_buffer_offset += portal_cooldown_varint_length;
-							memcpy(interthread_buffer + interthread_buffer_offset, &(const Boolean){ false }, sizeof(Boolean));
-							interthread_buffer_offset += sizeof(Boolean);
-							interthread_buffer[0] = interthread_buffer_offset - 1;
-							*interthread_buffer_length = interthread_buffer_offset;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
+							VarInt *packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length
+								+ sizeof(int32_t)
+								+ sizeof(Boolean)
+								+ dimension_count_varint_length
+								+ dimensions_total_size
+								+ max_players_varint_length
+								+ render_distance_varint_length
+								+ simulation_distance_varint_length
+								+ sizeof(Boolean)
+								+ sizeof(Boolean)
+								+ sizeof(Boolean)
+								+ sizeof(Boolean)
+								+ dimension_type_varint_length
+								+ dimension_length_length
+								+ dimension_length
+								+ sizeof seed_hash
+								+ sizeof(uint8_t)
+								+ sizeof(int8_t)
+								+ sizeof(Boolean)
+								+ sizeof(Boolean)
+								+ sizeof(Boolean)
+								+ portal_cooldown_varint_length
+								+ sizeof(Boolean));
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
+								(uintptr_t)&(const int32_t){ 0 }, sizeof(int32_t),
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)dimension_count_varint, dimension_count_varint_length)
+							for (size_t k = 0; k < NUMOF(dimensions); ++k)
 							{
-								errno = ret;
-								goto clear_stack_receiver;
+								bullshitcore_network_varint_decode(dimensions[k].length, &dimension_length_length);
+								dimension_length = strlen((const char *)dimensions[k].contents);
+								SEND((uintptr_t)*(const void **)(dimensions + k), dimension_length_length,
+									(uintptr_t)*(const void **)((const uint8_t *)(dimensions + k) + offsetof(Identifier, contents)), dimension_length)
 							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							*interthread_buffer_length = 7;
-							interthread_buffer[0] = 6;
-							interthread_buffer[1] = Packet_Play_Server_Game_Event;
-							interthread_buffer[2] = (uint8_t)13;
-							memcpy(interthread_buffer + 3, &(float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float));
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
+							SEND((uintptr_t)max_players_varint, max_players_varint_length,
+								(uintptr_t)render_distance_varint, render_distance_varint_length,
+								(uintptr_t)simulation_distance_varint, simulation_distance_varint_length,
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&(const Boolean){ true }, sizeof(Boolean),
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)dimension_type_varint, dimension_type_varint_length,
+								(uintptr_t)*(const void **)dimensions, dimension_length_length,
+								(uintptr_t)(*(const void **)((const uint8_t *)dimensions + offsetof(Identifier, contents))), dimension_length,
+								(uintptr_t)&seed_hash, sizeof seed_hash,
+								(uintptr_t)&(const uint8_t){ 3 }, sizeof(uint8_t),
+								(uintptr_t)&(const int8_t){ -1 }, sizeof(int8_t),
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)portal_cooldown_varint, portal_cooldown_varint_length,
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean))
+							// free();
+							packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Game_Event);
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length + 1);
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
+								(uintptr_t)&(uint8_t){ 13 }, sizeof(uint8_t),
+								(uintptr_t)&(float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
+							free(packet_identifier_varint);
+							free(packet_length_varint);
 							break;
 						}
 						case Packet_Configuration_Client_Keep_Alive:
@@ -467,279 +442,28 @@ packet_receiver(void *thread_arguments)
 						{
 							const uint32_t client_known_packs = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_1, sizeof REGISTRY_1);
-							*interthread_buffer_length = sizeof REGISTRY_1;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_2, sizeof REGISTRY_2);
-							*interthread_buffer_length = sizeof REGISTRY_2;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_3, sizeof REGISTRY_3);
-							*interthread_buffer_length = sizeof REGISTRY_3;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_4, sizeof REGISTRY_4);
-							*interthread_buffer_length = sizeof REGISTRY_4;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_5, sizeof REGISTRY_5);
-							*interthread_buffer_length = sizeof REGISTRY_5;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_6, sizeof REGISTRY_6);
-							*interthread_buffer_length = sizeof REGISTRY_6;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_7, sizeof REGISTRY_7);
-							*interthread_buffer_length = sizeof REGISTRY_7;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_8, sizeof REGISTRY_8);
-							*interthread_buffer_length = sizeof REGISTRY_8;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_9, sizeof REGISTRY_9);
-							*interthread_buffer_length = sizeof REGISTRY_9;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_10, sizeof REGISTRY_10);
-							*interthread_buffer_length = sizeof REGISTRY_10;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_11, sizeof REGISTRY_11);
-							*interthread_buffer_length = sizeof REGISTRY_11;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							memcpy(interthread_buffer, REGISTRY_12, sizeof REGISTRY_12);
-							*interthread_buffer_length = sizeof REGISTRY_12;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							sleep(1);
-							ret = pthread_mutex_lock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							*interthread_buffer_length = 2;
-							interthread_buffer[0] = 1;
-							interthread_buffer[1] = Packet_Configuration_Server_Finish_Configuration;
-							ret = pthread_cond_signal(interthread_buffer_condition);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
-							ret = pthread_mutex_unlock(interthread_buffer_mutex);
-							if (unlikely(ret))
-							{
-								errno = ret;
-								goto clear_stack_receiver;
-							}
+							SEND((uintptr_t)REGISTRY_1, sizeof REGISTRY_1);
+							SEND((uintptr_t)REGISTRY_2, sizeof REGISTRY_2);
+							SEND((uintptr_t)REGISTRY_3, sizeof REGISTRY_3);
+							SEND((uintptr_t)REGISTRY_4, sizeof REGISTRY_4);
+							SEND((uintptr_t)REGISTRY_5, sizeof REGISTRY_5);
+							SEND((uintptr_t)REGISTRY_6, sizeof REGISTRY_6);
+							SEND((uintptr_t)REGISTRY_7, sizeof REGISTRY_7);
+							SEND((uintptr_t)REGISTRY_8, sizeof REGISTRY_8);
+							SEND((uintptr_t)REGISTRY_9, sizeof REGISTRY_9);
+							SEND((uintptr_t)REGISTRY_10, sizeof REGISTRY_10);
+							SEND((uintptr_t)REGISTRY_11, sizeof REGISTRY_11);
+							SEND((uintptr_t)REGISTRY_12, sizeof REGISTRY_12);
+							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Configuration_Server_Finish_Configuration);
+							uint8_t packet_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length);
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length)
+							free(packet_identifier_varint);
+							free(packet_length_varint);
 							break;
 						}
 					}
@@ -755,7 +479,7 @@ packet_receiver(void *thread_arguments)
 #endif
 		}
 	}
-get_closed_receiver:
+close_connection:
 	return NULL;
 clear_stack_receiver:;
 	// TODO: Also pass failed function name
@@ -856,6 +580,7 @@ main(void)
 		}
 		if (unlikely(listen(server_endpoint, SOMAXCONN) == -1))
 			PERROR_AND_GOTO_DESTROY("listen", server_endpoint)
+		bullshitcore_log_log("Initialisation is complete, waiting for new connections.");
 		{
 			int client_endpoint;
 			{
