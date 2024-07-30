@@ -53,7 +53,6 @@
 		errno = ret; \
 		goto clear_stack_receiver; \
 	} \
-	sleep(1); \
 }
 #define PACKET_MAXSIZE 2097151
 #define REGISTRY_1 "\235\f\a\030minecraft:worldgen/biome@\022minecraft:badlands\000\027minecraft:bamboo_jungle\000\027minecraft:basalt_deltas\000\017minecraft:beach\000\026minecraft:birch_forest\000\026minecraft:cherry_grove\000\024minecraft:cold_ocean\000\030minecraft:crimson_forest\000\025minecraft:dark_forest\000\031minecraft:deep_cold_ocean\000\023minecraft:deep_dark\000\033minecraft:deep_frozen_ocean\000\035minecraft:deep_lukewarm_ocean\000\024minecraft:deep_ocean\000\020minecraft:desert\000\031minecraft:dripstone_caves\000\025minecraft:end_barrens\000\027minecraft:end_highlands\000\026minecraft:end_midlands\000\031minecraft:eroded_badlands\000\027minecraft:flower_forest\000\020minecraft:forest\000\026minecraft:frozen_ocean\000\026minecraft:frozen_peaks\000\026minecraft:frozen_river\000\017minecraft:grove\000\024minecraft:ice_spikes\000\026minecraft:jagged_peaks\000\020minecraft:jungle\000\030minecraft:lukewarm_ocean\000\024minecraft:lush_caves\000\030minecraft:mangrove_swamp\000\020minecraft:meadow\000\031minecraft:mushroom_fields\000\027minecraft:nether_wastes\000\017minecraft:ocean\000!minecraft:old_growth_birch_forest\000\037minecraft:old_growth_pine_taiga\000!minecraft:old_growth_spruce_taiga\000\020minecraft:plains\000\017minecraft:river\000\021minecraft:savanna\000\031minecraft:savanna_plateau\000\033minecraft:small_end_islands\000\025minecraft:snowy_beach\000\026minecraft:snowy_plains\000\026minecraft:snowy_slopes\000\025minecraft:snowy_taiga\000\032minecraft:soul_sand_valley\000\027minecraft:sparse_jungle\000\025minecraft:stony_peaks\000\025minecraft:stony_shore\000\032minecraft:sunflower_plains\000\017minecraft:swamp\000\017minecraft:taiga\000\021minecraft:the_end\000\022minecraft:the_void\000\024minecraft:warm_ocean\000\027minecraft:warped_forest\000\032minecraft:windswept_forest\000\"minecraft:windswept_gravelly_hills\000\031minecraft:windswept_hills\000\033minecraft:windswept_savanna\000\031minecraft:wooded_badlands\000"
@@ -383,6 +382,14 @@ packet_receiver(void *thread_arguments)
 								+ sizeof(Boolean));
 							uint8_t packet_length_varint_length;
 							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							VarInt * const packet_2_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Game_Event);
+							uint8_t packet_2_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_2_identifier_varint, &packet_2_identifier_varint_length);
+							VarInt * const packet_2_length_varint = bullshitcore_network_varint_encode(packet_2_identifier_varint_length
+								+ sizeof(uint8_t)
+								+ (sizeof(float) >= 4 ? 4 : sizeof(float)));
+							uint8_t packet_2_length_varint_length;
+							bullshitcore_network_varint_decode(packet_2_length_varint, &packet_2_length_varint_length);
 							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
 								(uintptr_t)&(const int32_t){ 0 }, sizeof(int32_t),
@@ -410,7 +417,12 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
 								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
 								(uintptr_t)portal_cooldown_varint, portal_cooldown_varint_length,
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean))
+								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)packet_2_length_varint, packet_2_length_varint_length,
+								(uintptr_t)packet_2_identifier_varint, packet_2_identifier_varint_length,
+								(uintptr_t)&(uint8_t){ 13 }, sizeof(uint8_t),
+								(uintptr_t)&(float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
+							free(packet_identifier_varint);
 							free(dimension_count_varint);
 							free(dimensions[0].length);
 							free(dimensions[1].length);
@@ -420,18 +432,9 @@ packet_receiver(void *thread_arguments)
 							free(simulation_distance_varint);
 							free(dimension_type_varint);
 							free(portal_cooldown_varint);
-							packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Game_Event);
-							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
-							packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length
-								+ sizeof(uint8_t)
-								+ (sizeof(float) >= 4 ? 4 : sizeof(float)));
-							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
-							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
-								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
-								(uintptr_t)&(uint8_t){ 13 }, sizeof(uint8_t),
-								(uintptr_t)&(float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
-							free(packet_identifier_varint);
 							free(packet_length_varint);
+							free(packet_2_identifier_varint);
+							free(packet_2_length_varint);
 							break;
 						}
 						case Packet_Configuration_Client_Keep_Alive:
@@ -450,25 +453,25 @@ packet_receiver(void *thread_arguments)
 						{
 							const uint32_t client_known_packs = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
-							SEND((uintptr_t)REGISTRY_1, sizeof REGISTRY_1);
-							SEND((uintptr_t)REGISTRY_2, sizeof REGISTRY_2);
-							SEND((uintptr_t)REGISTRY_3, sizeof REGISTRY_3);
-							SEND((uintptr_t)REGISTRY_4, sizeof REGISTRY_4);
-							SEND((uintptr_t)REGISTRY_5, sizeof REGISTRY_5);
-							SEND((uintptr_t)REGISTRY_6, sizeof REGISTRY_6);
-							SEND((uintptr_t)REGISTRY_7, sizeof REGISTRY_7);
-							SEND((uintptr_t)REGISTRY_8, sizeof REGISTRY_8);
-							SEND((uintptr_t)REGISTRY_9, sizeof REGISTRY_9);
-							SEND((uintptr_t)REGISTRY_10, sizeof REGISTRY_10);
-							SEND((uintptr_t)REGISTRY_11, sizeof REGISTRY_11);
-							SEND((uintptr_t)REGISTRY_12, sizeof REGISTRY_12);
 							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Configuration_Server_Finish_Configuration);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
 							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length);
 							uint8_t packet_length_varint_length;
 							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
-							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+							SEND((uintptr_t)REGISTRY_1, sizeof REGISTRY_1,
+								(uintptr_t)REGISTRY_2, sizeof REGISTRY_2,
+								(uintptr_t)REGISTRY_3, sizeof REGISTRY_3,
+								(uintptr_t)REGISTRY_4, sizeof REGISTRY_4,
+								(uintptr_t)REGISTRY_5, sizeof REGISTRY_5,
+								(uintptr_t)REGISTRY_6, sizeof REGISTRY_6,
+								(uintptr_t)REGISTRY_7, sizeof REGISTRY_7,
+								(uintptr_t)REGISTRY_8, sizeof REGISTRY_8,
+								(uintptr_t)REGISTRY_9, sizeof REGISTRY_9,
+								(uintptr_t)REGISTRY_10, sizeof REGISTRY_10,
+								(uintptr_t)REGISTRY_11, sizeof REGISTRY_11,
+								(uintptr_t)REGISTRY_12, sizeof REGISTRY_12,
+								(uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length)
 							free(packet_identifier_varint);
 							free(packet_length_varint);
