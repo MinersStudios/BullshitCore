@@ -11,7 +11,7 @@ typedef int8_t VarInt;
 typedef int8_t VarLong;
 typedef struct
 {
-	const VarInt *length;
+	VarInt *length;
 	const uint8_t *contents;
 } String;
 typedef struct
@@ -61,12 +61,12 @@ enum Packet_Handshake
 };
 enum Packet_Status_Client
 {
-	Packet_Status_Client_Request,
+	Packet_Status_Client_Status_Request,
 	Packet_Status_Client_Ping_Request
 };
 enum Packet_Status_Server
 {
-	Packet_Status_Server_Response,
+	Packet_Status_Server_Status_Response,
 	Packet_Status_Server_Ping_Response
 };
 enum Packet_Login_Client
