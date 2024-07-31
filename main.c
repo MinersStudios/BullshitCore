@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
@@ -85,6 +86,7 @@ struct ThreadArguments
 	pthread_mutex_t *interthread_buffer_mutex;
 	pthread_cond_t *interthread_buffer_condition;
 	sem_t *client_thread_arguments_semaphore;
+	enum State *connection_state;
 };
 
 static void *
@@ -96,9 +98,9 @@ packet_receiver(void *thread_arguments)
 		size_t * const interthread_buffer_length = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_length;
 		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_mutex;
 		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_condition;
+		enum State * const connection_state = ((struct ThreadArguments*)thread_arguments)->connection_state;
 		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->client_thread_arguments_semaphore) == -1))
 			goto clear_stack_receiver;
-		enum State current_state = State_Handshaking;
 		Boolean compression_enabled = false;
 		int8_t buffer[PACKET_MAXSIZE];
 		uint8_t packet_next_boundary;
@@ -113,7 +115,7 @@ packet_receiver(void *thread_arguments)
 			buffer_offset = packet_next_boundary;
 			const uint32_t packet_identifier = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 			buffer_offset += packet_next_boundary;
-			switch (current_state)
+			switch (*connection_state)
 			{
 				case State_Handshaking:
 				{
@@ -130,7 +132,7 @@ packet_receiver(void *thread_arguments)
 							const uint32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
 							if (target_state >= State_Status && target_state <= State_Transfer)
-								current_state = target_state;
+								*connection_state = target_state;
 							break;
 						}
 					}
@@ -228,7 +230,7 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Login_Client_Login_Acknowledged:
 						{
-							current_state = State_Configuration;
+							*connection_state = State_Configuration;
 							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Configuration_Server_Known_Packs);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
@@ -300,7 +302,7 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Configuration_Client_Finish_Configuration_Acknowledge:
 						{
-							current_state = State_Play;
+							*connection_state = State_Play;
 							VarInt *packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Login);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
@@ -513,8 +515,10 @@ packet_sender(void *thread_arguments)
 		size_t * const interthread_buffer_length = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_length;
 		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_mutex;
 		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_condition;
+		enum State * const connection_state = ((struct ThreadArguments*)thread_arguments)->connection_state;
 		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->client_thread_arguments_semaphore) == -1))
 			goto clear_stack_sender;
+		struct timespec keep_alive_timeout;
 		while (1)
 		{
 			int ret = pthread_mutex_lock(interthread_buffer_mutex);
@@ -523,8 +527,30 @@ packet_sender(void *thread_arguments)
 				errno = ret;
 				goto clear_stack_sender;
 			}
-			ret = pthread_cond_wait(interthread_buffer_condition, interthread_buffer_mutex);
-			if (unlikely(ret))
+			if (unlikely(clock_gettime(CLOCK_REALTIME, &keep_alive_timeout) == -1))
+				goto clear_stack_sender;
+			keep_alive_timeout.tv_sec += 15;
+			ret = pthread_cond_timedwait(interthread_buffer_condition, interthread_buffer_mutex, &keep_alive_timeout);
+			if (ret == ETIMEDOUT)
+			{
+				int32_t packet_identifier = *connection_state == State_Configuration
+					? Packet_Configuration_Server_Keep_Alive
+					: Packet_Play_Server_Keep_Alive;
+				VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(packet_identifier);
+				uint8_t packet_identifier_varint_length;
+				bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+				VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length
+					+ sizeof(int64_t));
+				uint8_t packet_length_varint_length;
+				bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+				memcpy(interthread_buffer, packet_length_varint, packet_length_varint_length);
+				size_t interthread_buffer_offset = packet_length_varint_length;
+				memcpy(interthread_buffer + interthread_buffer_offset, packet_identifier_varint, packet_identifier_varint_length);
+				interthread_buffer_offset += packet_identifier_varint_length;
+				memcpy(interthread_buffer + interthread_buffer_offset, &(int64_t){ 0 }, sizeof(int64_t));
+				*interthread_buffer_length = interthread_buffer_offset + sizeof(int64_t);
+			}
+			else if (unlikely(ret))
 			{
 				errno = ret;
 				goto clear_stack_sender;
@@ -632,8 +658,21 @@ main(void)
 					if (unlikely(!client_thread_arguments_semaphore))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					if (unlikely(sem_init(client_thread_arguments_semaphore, 0, 0) == -1))
-						PERROR_AND_GOTO_DESTROY("sem_init", thread_attributes)
-					*thread_arguments = (struct ThreadArguments){ client_endpoint, interthread_buffer, interthread_buffer_length, interthread_buffer_mutex, interthread_buffer_condition, client_thread_arguments_semaphore };
+						PERROR_AND_GOTO_DESTROY("sem_init", client_endpoint)
+					enum State *connection_state = malloc(sizeof *connection_state); // free me
+					if (unlikely(!connection_state))
+						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
+					*connection_state = State_Handshaking;
+					*thread_arguments = (struct ThreadArguments)
+					{
+						client_endpoint,
+						interthread_buffer,
+						interthread_buffer_length,
+						interthread_buffer_mutex,
+						interthread_buffer_condition,
+						client_thread_arguments_semaphore,
+						connection_state
+					};
 					{
 						pthread_t packet_receiver_thread;
 						ret = pthread_create(&packet_receiver_thread, &thread_attributes, packet_receiver, thread_arguments);
