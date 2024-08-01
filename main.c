@@ -145,7 +145,7 @@ packet_receiver(void *thread_arguments)
 						case Packet_Status_Client_Status_Request:
 						{
 							// TODO: Sanitise input (implement it after testing)
-							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" EXPAND_AND_STRINGIFY(PROTOCOL_VERSION) "},\"players\":{\"max\":" EXPAND_AND_STRINGIFY(MAX_PLAYERS) ",\"online\":0},\"description\":{\"text\":\"BullshitCore is up and running!\",\"favicon\":\"" FAVICON "\"}}";
+							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" EXPAND_AND_STRINGIFY(PROTOCOL_VERSION) "},\"players\":{\"max\":" EXPAND_AND_STRINGIFY(MAX_PLAYERS) ",\"online\":0},\"description\":{\"text\":\"BullshitCore is up and running!\"},\"favicon\":\"" FAVICON "\"}";
 							const size_t text_length = strlen((const char *)text);
 							const JSONTextComponent packet_payload =
 							{
