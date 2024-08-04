@@ -77,6 +77,7 @@
 #define PORT 25565
 #define RENDER_DISTANCE 2
 #define SIMULATION_DISTANCE 5
+#define DESCRIPTION "BullshitCore is up and running!"
 
 struct ThreadArguments
 {
@@ -87,19 +88,21 @@ struct ThreadArguments
 	pthread_cond_t *interthread_buffer_condition;
 	sem_t *client_thread_arguments_semaphore;
 	enum State *connection_state;
+	pthread_t sender_thread;
 };
 
 static void *
 packet_receiver(void *thread_arguments)
 {
 	{
-		const int client_endpoint = ((struct ThreadArguments*)thread_arguments)->client_endpoint;
-		uint8_t * const interthread_buffer = ((struct ThreadArguments*)thread_arguments)->interthread_buffer;
-		size_t * const interthread_buffer_length = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_length;
-		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_mutex;
-		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_condition;
-		enum State * const connection_state = ((struct ThreadArguments*)thread_arguments)->connection_state;
-		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->client_thread_arguments_semaphore) == -1))
+		const int client_endpoint = ((struct ThreadArguments *)thread_arguments)->client_endpoint;
+		uint8_t * const interthread_buffer = ((struct ThreadArguments *)thread_arguments)->interthread_buffer;
+		size_t * const interthread_buffer_length = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_length;
+		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_mutex;
+		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_condition;
+		enum State * const connection_state = ((struct ThreadArguments *)thread_arguments)->connection_state;
+		const pthread_t sender_thread = ((struct ThreadArguments *)thread_arguments)->sender_thread;
+		if (unlikely(sem_post(((struct ThreadArguments *)thread_arguments)->client_thread_arguments_semaphore) == -1))
 			goto clear_stack_receiver;
 		Boolean compression_enabled = false;
 		int8_t buffer[PACKET_MAXSIZE];
@@ -109,7 +112,7 @@ packet_receiver(void *thread_arguments)
 		while (1)
 		{
 			const ssize_t bytes_read = recv(client_endpoint, buffer, PACKET_MAXSIZE, 0);
-			if (!bytes_read) return NULL;
+			if (!bytes_read) goto close_connection;
 			else if (unlikely(bytes_read == -1)) goto clear_stack_receiver;
 			bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
 			buffer_offset = packet_next_boundary;
@@ -144,8 +147,7 @@ packet_receiver(void *thread_arguments)
 					{
 						case Packet_Status_Client_Status_Request:
 						{
-							// TODO: Sanitise input (implement it after testing)
-							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" EXPAND_AND_STRINGIFY(PROTOCOL_VERSION) "},\"players\":{\"max\":" EXPAND_AND_STRINGIFY(MAX_PLAYERS) ",\"online\":0},\"description\":{\"text\":\"BullshitCore is up and running!\"},\"favicon\":\"" FAVICON "\"}";
+							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" EXPAND_AND_STRINGIFY(PROTOCOL_VERSION) "},\"players\":{\"max\":" EXPAND_AND_STRINGIFY(MAX_PLAYERS) ",\"online\":0},\"description\":{\"text\":\"" DESCRIPTION "\"},\"favicon\":\"" FAVICON "\"}";
 							const size_t text_length = strlen((const char *)text);
 							const JSONTextComponent packet_payload =
 							{
@@ -491,8 +493,14 @@ packet_receiver(void *thread_arguments)
 			bullshitcore_log_log("Reached an end of the packet jump table.");
 #endif
 		}
-	}
 close_connection:
+		ret = pthread_cancel(sender_thread);
+		if (unlikely(ret))
+		{
+			errno = ret;
+			goto clear_stack_receiver;
+		}
+	}
 	return NULL;
 clear_stack_receiver:;
 	// TODO: Also pass failed function name
@@ -510,18 +518,24 @@ static void *
 packet_sender(void *thread_arguments)
 {
 	{
-		const int client_endpoint = ((struct ThreadArguments*)thread_arguments)->client_endpoint;
-		uint8_t * const interthread_buffer = ((struct ThreadArguments*)thread_arguments)->interthread_buffer;
-		size_t * const interthread_buffer_length = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_length;
-		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_mutex;
-		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments*)thread_arguments)->interthread_buffer_condition;
-		enum State * const connection_state = ((struct ThreadArguments*)thread_arguments)->connection_state;
-		if (unlikely(sem_post(((struct ThreadArguments*)thread_arguments)->client_thread_arguments_semaphore) == -1))
+		int ret = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+		if (unlikely(ret))
+		{
+			errno = ret;
+			goto clear_stack_sender;
+		}
+		const int client_endpoint = ((struct ThreadArguments *)thread_arguments)->client_endpoint;
+		uint8_t * const interthread_buffer = ((struct ThreadArguments *)thread_arguments)->interthread_buffer;
+		size_t * const interthread_buffer_length = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_length;
+		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_mutex;
+		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_condition;
+		enum State * const connection_state = ((struct ThreadArguments *)thread_arguments)->connection_state;
+		if (unlikely(sem_post(((struct ThreadArguments *)thread_arguments)->client_thread_arguments_semaphore) == -1))
 			goto clear_stack_sender;
 		struct timespec keep_alive_timeout;
 		while (1)
 		{
-			int ret = pthread_mutex_lock(interthread_buffer_mutex);
+			ret = pthread_mutex_lock(interthread_buffer_mutex);
 			if (unlikely(ret))
 			{
 				errno = ret;
@@ -533,6 +547,8 @@ packet_sender(void *thread_arguments)
 			ret = pthread_cond_timedwait(interthread_buffer_condition, interthread_buffer_mutex, &keep_alive_timeout);
 			if (ret == ETIMEDOUT)
 			{
+				if (*connection_state != State_Configuration && *connection_state != State_Play)
+					goto skip_send;
 				int32_t packet_identifier = *connection_state == State_Configuration
 					? Packet_Configuration_Server_Keep_Alive
 					: Packet_Play_Server_Keep_Alive;
@@ -557,6 +573,7 @@ packet_sender(void *thread_arguments)
 			}
 			if (unlikely(send(client_endpoint, interthread_buffer, *interthread_buffer_length, 0) == -1))
 				goto clear_stack_sender;
+skip_send:
 			ret = pthread_mutex_unlock(interthread_buffer_mutex);
 			if (unlikely(ret))
 			{
@@ -673,23 +690,20 @@ main(void)
 						client_thread_arguments_semaphore,
 						connection_state
 					};
+					pthread_t packet_sender_thread;
+					ret = pthread_create(&packet_sender_thread, &thread_attributes, packet_sender, thread_arguments);
+					if (unlikely(ret))
 					{
-						pthread_t packet_receiver_thread;
-						ret = pthread_create(&packet_receiver_thread, &thread_attributes, packet_receiver, thread_arguments);
-						if (unlikely(ret))
-						{
-							errno = ret;
-							PERROR_AND_GOTO_DESTROY("pthread_create", client_endpoint)
-						}
+						errno = ret;
+						PERROR_AND_GOTO_DESTROY("pthread_create", client_endpoint)
 					}
+					((struct ThreadArguments *)thread_arguments)->sender_thread = packet_sender_thread;
+					pthread_t packet_receiver_thread;
+					ret = pthread_create(&packet_receiver_thread, &thread_attributes, packet_receiver, thread_arguments);
+					if (unlikely(ret))
 					{
-						pthread_t packet_sender_thread;
-						ret = pthread_create(&packet_sender_thread, &thread_attributes, packet_sender, thread_arguments);
-						if (unlikely(ret))
-						{
-							errno = ret;
-							PERROR_AND_GOTO_DESTROY("pthread_create", client_endpoint)
-						}
+						errno = ret;
+						PERROR_AND_GOTO_DESTROY("pthread_create", client_endpoint)
 					}
 					if (unlikely(sem_wait(client_thread_arguments_semaphore) == -1))
 						PERROR_AND_GOTO_DESTROY("sem_wait", client_endpoint)
