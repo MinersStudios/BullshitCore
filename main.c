@@ -19,8 +19,8 @@
 #include "log.h"
 #include "network.h"
 #include "world.h"
+#include "version"
 
-#define MINECRAFT_VERSION "1.21"
 #define PROTOCOL_VERSION 767
 #define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
 #define THREAD_STACK_SIZE 8388608
