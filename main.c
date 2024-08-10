@@ -868,7 +868,7 @@ main(void)
 		}
 		if (unlikely(listen(server_endpoint, SOMAXCONN) == -1))
 			PERROR_AND_GOTO_DESTROY("listen", server_endpoint)
-		bullshitcore_log_log("Initialisation is complete, waiting for new connections.");
+		bullshitcore_log_log("Initialisation is complete, awaiting new connections.");
 		{
 			int client_endpoint;
 			struct sockaddr_storage client_address_data;
