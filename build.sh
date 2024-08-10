@@ -1,7 +1,7 @@
 #!/bin/sh
 
-(cd "$(dirname "$0")/source" || exit
-. ../version || { printf "Version formatted wrong\n"; exit; }
+(cd "$(dirname "$0")/source" || exit 1
+. ../version || { printf "Version formatted wrong\n" >&2; exit 1; }
 output="../BullshitCore-$MINECRAFT_VERSION-$VERSION"
 gcc -std=c99 -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow -Wwrite-strings \
 -Wstrict-prototypes -Wold-style-definition -Wredundant-decls -Wnested-externs \

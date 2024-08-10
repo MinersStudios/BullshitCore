@@ -134,7 +134,7 @@ packet_receiver(void *thread_arguments)
 							buffer_offset += packet_next_boundary;
 							const uint32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
-							if (target_state >= State_Status && target_state <= State_Transfer)
+							if (target_state == State_Status || target_state == State_Login)
 								*connection_state = target_state;
 							break;
 						}
@@ -216,7 +216,7 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)(buffer + buffer_offset), 16,
 								(uintptr_t)(buffer + buffer_offset - username_length_length - username_length), username_length_length + username_length,
 								(uintptr_t)properties_count_varint, properties_count_varint_length,
-								(uintptr_t)&(Boolean){ true }, sizeof(Boolean))
+								(uintptr_t)&(const Boolean){ true }, sizeof(Boolean))
 							free(packet_length_varint);
 							free(packet_identifier_varint);
 							free(properties_count_varint);
@@ -241,7 +241,7 @@ packet_receiver(void *thread_arguments)
 							bullshitcore_network_varint_decode(known_packs_count_varint, &known_packs_count_varint_length);
 							const String namespace = { bullshitcore_network_varint_encode(strlen("minecraft")), (const uint8_t *)"minecraft" };
 							const String identifier = { bullshitcore_network_varint_encode(strlen("core")), (const uint8_t *)"core" };
-							const String version = { bullshitcore_network_varint_encode(strlen("1.21")), (const uint8_t *)"1.21" };
+							const String version = { bullshitcore_network_varint_encode(strlen(MINECRAFT_VERSION)), (const uint8_t *)MINECRAFT_VERSION };
 							uint8_t namespace_length_varint_length;
 							bullshitcore_network_varint_decode(namespace.length, &namespace_length_varint_length);
 							uint8_t identifier_length_varint_length;
@@ -424,8 +424,8 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
 								(uintptr_t)packet_2_length_varint, packet_2_length_varint_length,
 								(uintptr_t)packet_2_identifier_varint, packet_2_identifier_varint_length,
-								(uintptr_t)&(uint8_t){ 13 }, sizeof(uint8_t),
-								(uintptr_t)&(float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
+								(uintptr_t)&(const uint8_t){ 13 }, sizeof(uint8_t),
+								(uintptr_t)&(const float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
 							free(packet_identifier_varint);
 							free(dimension_count_varint);
 							free(dimensions[0].length);
@@ -486,6 +486,241 @@ packet_receiver(void *thread_arguments)
 				}
 				case State_Play:
 				{
+					switch (packet_identifier)
+					{
+						case Packet_Play_Client_Confirm_Teleportation:
+						{
+							break;
+						}
+						case Packet_Play_Client_Query_Block_Entity_Tag:
+						{
+							break;
+						}
+						case Packet_Play_Client_Change_Difficulty:
+						{
+							break;
+						}
+						case Packet_Play_Client_Acknowledge_Message:
+						{
+							break;
+						}
+						case Packet_Play_Client_Chat_Command:
+						{
+							break;
+						}
+						case Packet_Play_Client_Signed_Chat_Command:
+						{
+							break;
+						}
+						case Packet_Play_Client_Chat_Message:
+						{
+							break;
+						}
+						case Packet_Play_Client_Player_Session:
+						{
+							break;
+						}
+						case Packet_Play_Client_Chunk_Batch_Received:
+						{
+							break;
+						}
+						case Packet_Play_Client_Client_Status:
+						{
+							break;
+						}
+						case Packet_Play_Client_Client_Information:
+						{
+							break;
+						}
+						case Packet_Play_Client_Command_Suggestions_Request:
+						{
+							break;
+						}
+						case Packet_Play_Client_Acknowledge_Configuration:
+						{
+							break;
+						}
+						case Packet_Play_Client_Click_Container_Button:
+						{
+							break;
+						}
+						case Packet_Play_Client_Click_Container:
+						{
+							break;
+						}
+						case Packet_Play_Client_Close_Container:
+						{
+							break;
+						}
+						case Packet_Play_Client_Change_Container_Slot_State:
+						{
+							break;
+						}
+						case Packet_Play_Client_Cookie_Response:
+						{
+							break;
+						}
+						case Packet_Play_Client_Plugin_Message:
+						{
+							break;
+						}
+						case Packet_Play_Client_Debug_Sample_Subscription:
+						{
+							break;
+						}
+						case Packet_Play_Client_Edit_Book:
+						{
+							break;
+						}
+						case Packet_Play_Client_Query_Entity_Tag:
+						{
+							break;
+						}
+						case Packet_Play_Client_Interact:
+						{
+							break;
+						}
+						case Packet_Play_Client_Jigsaw_Generate:
+						{
+							break;
+						}
+						case Packet_Play_Client_Keep_Alive:
+						{
+							break;
+						}
+						case Packet_Play_Client_Lock_Difficulty:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Player_Position:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Player_Position_And_Rotation:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Player_Rotation:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Player_On_Ground:
+						{
+							break;
+						}
+						case Packet_Play_Client_Move_Vehicle:
+						{
+							break;
+						}
+						case Packet_Play_Client_Paddle_Boat:
+						{
+							break;
+						}
+						case Packet_Play_Client_Pick_Item:
+						{
+							break;
+						}
+						case Packet_Play_Client_Ping_Request:
+						{
+							break;
+						}
+						case Packet_Play_Client_Place_Recipe:
+						{
+							break;
+						}
+						case Packet_Play_Client_Player_Abilities:
+						{
+							break;
+						}
+						case Packet_Play_Client_Player_Action:
+						{
+							break;
+						}
+						case Packet_Play_Client_Player_Command:
+						{
+							break;
+						}
+						case Packet_Play_Client_Player_Input:
+						{
+							break;
+						}
+						case Packet_Play_Client_Pong:
+						{
+							break;
+						}
+						case Packet_Play_Client_Change_Recipe_Book_Settings:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Seen_Recipe:
+						{
+							break;
+						}
+						case Packet_Play_Client_Rename_Item:
+						{
+							break;
+						}
+						case Packet_Play_Client_Resource_Pack_Response:
+						{
+							break;
+						}
+						case Packet_Play_Client_Seen_Advancements:
+						{
+							break;
+						}
+						case Packet_Play_Client_Select_Trade:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Beacon_Effect:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Held_Item:
+						{
+							break;
+						}
+						case Packet_Play_Client_Program_Command_Block:
+						{
+							break;
+						}
+						case Packet_Play_Client_Program_Command_Block_Minecart:
+						{
+							break;
+						}
+						case Packet_Play_Client_Set_Creative_Mode_Slot:
+						{
+							break;
+						}
+						case Packet_Play_Client_Program_Jigsaw_Block:
+						{
+							break;
+						}
+						case Packet_Play_Client_Program_Structure_Block:
+						{
+							break;
+						}
+						case Packet_Play_Client_Update_Sign:
+						{
+							break;
+						}
+						case Packet_Play_Client_Swing_Arm:
+						{
+							break;
+						}
+						case Packet_Play_Client_Teleport_To_Entity:
+						{
+							break;
+						}
+						case Packet_Play_Client_Use_Item_On:
+						{
+							break;
+						}
+						case Packet_Play_Client_Use_Item:
+						{
+							break;
+						}
+					}
 					break;
 				}
 			}
@@ -563,7 +798,7 @@ packet_sender(void *thread_arguments)
 				size_t interthread_buffer_offset = packet_length_varint_length;
 				memcpy(interthread_buffer + interthread_buffer_offset, packet_identifier_varint, packet_identifier_varint_length);
 				interthread_buffer_offset += packet_identifier_varint_length;
-				memcpy(interthread_buffer + interthread_buffer_offset, &(int64_t){ 0 }, sizeof(int64_t));
+				memcpy(interthread_buffer + interthread_buffer_offset, &(const int64_t){ 0 }, sizeof(int64_t));
 				*interthread_buffer_length = interthread_buffer_offset + sizeof(int64_t);
 			}
 			else if (unlikely(ret))
@@ -626,10 +861,9 @@ main(void)
 			}
 			else if (unlikely(ret == -1))
 				PERROR_AND_GOTO_DESTROY("inet_pton", server_endpoint)
-			const struct sockaddr_in server_address = { AF_INET, htons(PORT), address };
-			struct sockaddr server_address_data;
-			memcpy(&server_address_data, &server_address, sizeof server_address_data);
-			if (unlikely(bind(server_endpoint, &server_address_data, sizeof server_address_data) == -1))
+			struct sockaddr_storage server_address_data;
+			memcpy((struct sockaddr *)&server_address_data, &(const struct sockaddr_in){ AF_INET, htons(PORT), address }, sizeof(struct sockaddr_in));
+			if (unlikely(bind(server_endpoint, (struct sockaddr *)&server_address_data, sizeof server_address_data) == -1))
 				PERROR_AND_GOTO_DESTROY("bind", server_endpoint)
 		}
 		if (unlikely(listen(server_endpoint, SOMAXCONN) == -1))
@@ -637,13 +871,22 @@ main(void)
 		bullshitcore_log_log("Initialisation is complete, waiting for new connections.");
 		{
 			int client_endpoint;
+			struct sockaddr_storage client_address_data;
+			struct sockaddr_in client_address_data_in;
+			socklen_t client_address_data_length = sizeof client_address_data;
 			{
 				while (1)
 				{
-					client_endpoint = accept(server_endpoint, NULL, NULL);
+					client_endpoint = accept(server_endpoint, (struct sockaddr *)&client_address_data, &client_address_data_length);
 					if (unlikely(client_endpoint == -1))
 						PERROR_AND_GOTO_DESTROY("accept", server_endpoint)
-					bullshitcore_log_log("Connection is established!");
+					memcpy(&client_address_data_in, &client_address_data, sizeof client_address_data_in);
+					{
+						char client_address_string[INET_ADDRSTRLEN];
+						if (unlikely(!inet_ntop(AF_INET, &client_address_data_in.sin_addr, client_address_string, sizeof client_address_string)))
+							PERROR_AND_GOTO_DESTROY("inet_ntop", server_endpoint)
+						bullshitcore_log_logf("A client (%s) has connected.\n", client_address_string);
+					}
 					struct ThreadArguments *thread_arguments = malloc(sizeof *thread_arguments);
 					if (unlikely(!thread_arguments))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
