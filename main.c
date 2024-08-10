@@ -216,7 +216,7 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)(buffer + buffer_offset), 16,
 								(uintptr_t)(buffer + buffer_offset - username_length_length - username_length), username_length_length + username_length,
 								(uintptr_t)properties_count_varint, properties_count_varint_length,
-								(uintptr_t)&(Boolean){ true }, sizeof(Boolean))
+								(uintptr_t)&(const Boolean){ true }, sizeof(Boolean))
 							free(packet_length_varint);
 							free(packet_identifier_varint);
 							free(properties_count_varint);
@@ -241,7 +241,7 @@ packet_receiver(void *thread_arguments)
 							bullshitcore_network_varint_decode(known_packs_count_varint, &known_packs_count_varint_length);
 							const String namespace = { bullshitcore_network_varint_encode(strlen("minecraft")), (const uint8_t *)"minecraft" };
 							const String identifier = { bullshitcore_network_varint_encode(strlen("core")), (const uint8_t *)"core" };
-							const String version = { bullshitcore_network_varint_encode(strlen("1.21")), (const uint8_t *)"1.21" };
+							const String version = { bullshitcore_network_varint_encode(strlen(MINECRAFT_VERSION)), (const uint8_t *)MINECRAFT_VERSION };
 							uint8_t namespace_length_varint_length;
 							bullshitcore_network_varint_decode(namespace.length, &namespace_length_varint_length);
 							uint8_t identifier_length_varint_length;
@@ -424,8 +424,8 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
 								(uintptr_t)packet_2_length_varint, packet_2_length_varint_length,
 								(uintptr_t)packet_2_identifier_varint, packet_2_identifier_varint_length,
-								(uintptr_t)&(uint8_t){ 13 }, sizeof(uint8_t),
-								(uintptr_t)&(float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
+								(uintptr_t)&(const uint8_t){ 13 }, sizeof(uint8_t),
+								(uintptr_t)&(const float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
 							free(packet_identifier_varint);
 							free(dimension_count_varint);
 							free(dimensions[0].length);
@@ -798,7 +798,7 @@ packet_sender(void *thread_arguments)
 				size_t interthread_buffer_offset = packet_length_varint_length;
 				memcpy(interthread_buffer + interthread_buffer_offset, packet_identifier_varint, packet_identifier_varint_length);
 				interthread_buffer_offset += packet_identifier_varint_length;
-				memcpy(interthread_buffer + interthread_buffer_offset, &(int64_t){ 0 }, sizeof(int64_t));
+				memcpy(interthread_buffer + interthread_buffer_offset, &(const int64_t){ 0 }, sizeof(int64_t));
 				*interthread_buffer_length = interthread_buffer_offset + sizeof(int64_t);
 			}
 			else if (unlikely(ret))
@@ -861,10 +861,9 @@ main(void)
 			}
 			else if (unlikely(ret == -1))
 				PERROR_AND_GOTO_DESTROY("inet_pton", server_endpoint)
-			const struct sockaddr_in server_address = { AF_INET, htons(PORT), address };
-			struct sockaddr server_address_data;
-			memcpy(&server_address_data, &server_address, sizeof server_address_data);
-			if (unlikely(bind(server_endpoint, &server_address_data, sizeof server_address_data) == -1))
+			struct sockaddr_storage server_address_data;
+			memcpy((struct sockaddr *)&server_address_data, &(const struct sockaddr_in){ AF_INET, htons(PORT), address }, sizeof(struct sockaddr_in));
+			if (unlikely(bind(server_endpoint, (struct sockaddr *)&server_address_data, sizeof server_address_data) == -1))
 				PERROR_AND_GOTO_DESTROY("bind", server_endpoint)
 		}
 		if (unlikely(listen(server_endpoint, SOMAXCONN) == -1))
@@ -872,13 +871,22 @@ main(void)
 		bullshitcore_log_log("Initialisation is complete, waiting for new connections.");
 		{
 			int client_endpoint;
+			struct sockaddr_storage client_address_data;
+			struct sockaddr_in client_address_data_in;
+			socklen_t client_address_data_length = sizeof client_address_data;
 			{
 				while (1)
 				{
-					client_endpoint = accept(server_endpoint, NULL, NULL);
+					client_endpoint = accept(server_endpoint, (struct sockaddr *)&client_address_data, &client_address_data_length);
 					if (unlikely(client_endpoint == -1))
 						PERROR_AND_GOTO_DESTROY("accept", server_endpoint)
-					bullshitcore_log_log("Connection is established!");
+					memcpy(&client_address_data_in, &client_address_data, sizeof client_address_data_in);
+					{
+						char client_address_string[INET_ADDRSTRLEN];
+						if (unlikely(!inet_ntop(AF_INET, &client_address_data_in.sin_addr, client_address_string, sizeof client_address_string)))
+							PERROR_AND_GOTO_DESTROY("inet_ntop", server_endpoint)
+						bullshitcore_log_logf("A client (%s) has connected.\n", client_address_string);
+					}
 					struct ThreadArguments *thread_arguments = malloc(sizeof *thread_arguments);
 					if (unlikely(!thread_arguments))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
