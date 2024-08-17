@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <cjson/cJSON.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -124,7 +125,7 @@ packet_receiver(void *thread_arguments)
 				{
 					switch (packet_identifier)
 					{
-						case Packet_Handshake:
+						case Packet_Handshaking_Client_Handshake:
 						{
 							const uint32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
@@ -201,25 +202,54 @@ packet_receiver(void *thread_arguments)
 							uint8_t username_length_length;
 							const uint32_t username_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &username_length_length);
 							buffer_offset += username_length_length + username_length;
-							const uint32_t packet_length = username_length_length + username_length + 19;
-							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_length);
-							uint8_t packet_length_varint_length;
-							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
 							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Login_Server_Login_Success);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
-							VarInt * const properties_count_varint = bullshitcore_network_varint_encode(0);
+							VarInt * const properties_count_varint = bullshitcore_network_varint_encode(1);
 							uint8_t properties_count_varint_length;
 							bullshitcore_network_varint_decode(properties_count_varint, &properties_count_varint_length);
+							const String name = { bullshitcore_network_varint_encode(strlen("textures")), (const uint8_t *)"textures" };
+							uint8_t name_length_varint_length;
+							bullshitcore_network_varint_decode(name.length, &name_length_varint_length);
+							const String value = { bullshitcore_network_varint_encode(strlen("")), (const uint8_t *)"" };
+							uint8_t value_length_varint_length;
+							bullshitcore_network_varint_decode(value.length, &value_length_varint_length);
+							const String signature = { bullshitcore_network_varint_encode(strlen("")), (const uint8_t *)"" };
+							uint8_t signature_length_varint_length;
+							bullshitcore_network_varint_decode(signature.length, &signature_length_varint_length);
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length
+								+ 16
+								+ username_length_length + username_length
+								+ properties_count_varint_length
+								+ name_length_varint_length
+								+ strlen((const char *)name.contents)
+								+ value_length_varint_length
+								+ strlen((const char *)value.contents)
+								+ sizeof(Boolean)
+								+ signature_length_varint_length
+								+ strlen((const char *)signature.contents)
+								+ sizeof(Boolean));
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
 							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
 								(uintptr_t)(buffer + buffer_offset), 16,
 								(uintptr_t)(buffer + buffer_offset - username_length_length - username_length), username_length_length + username_length,
 								(uintptr_t)properties_count_varint, properties_count_varint_length,
+								(uintptr_t)name.length, name_length_varint_length,
+								(uintptr_t)name.contents, strlen((const char *)name.contents),
+								(uintptr_t)value.length, value_length_varint_length,
+								(uintptr_t)value.contents, strlen((const char *)value.contents),
+								(uintptr_t)&(const Boolean){ true }, sizeof(Boolean),
+								(uintptr_t)signature.length, signature_length_varint_length,
+								(uintptr_t)signature.contents, strlen((const char *)signature.contents),
 								(uintptr_t)&(const Boolean){ true }, sizeof(Boolean))
-							free(packet_length_varint);
 							free(packet_identifier_varint);
 							free(properties_count_varint);
+							free(name.length);
+							free(value.length);
+							free(signature.length);
+							free(packet_length_varint);
 							break;
 						}
 						case Packet_Login_Client_Encryption_Response:
@@ -305,6 +335,17 @@ packet_receiver(void *thread_arguments)
 						case Packet_Configuration_Client_Finish_Configuration_Acknowledge:
 						{
 							*connection_state = State_Play;
+							// FILE *level_data_file = fopen("world/level.dat", "r");
+							// if (unlikely(!level_data_file))
+							// 	goto clear_stack_receiver;
+							// NBT *level_data = bullshitcore_nbt_read(level_data_file);
+							// if (unlikely(!level_data))
+							// {
+							// 	fclose(level_data_file);
+							// 	goto clear_stack_receiver;
+							// }
+							// if (unlikely(fclose(level_data_file) == EOF))
+							// 	goto clear_stack_receiver;
 							VarInt *packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Login);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
@@ -347,7 +388,9 @@ packet_receiver(void *thread_arguments)
 							VarInt * const dimension_type_varint = bullshitcore_network_varint_encode(0);
 							uint8_t dimension_type_varint_length;
 							bullshitcore_network_varint_decode(dimension_type_varint, &dimension_type_varint_length);
-							int64_t seed_hash = -1916599016670012116; // leaked government information??
+							int64_t seed_hash = 0;
+							// int64_t seed_hash = *(int64_t *)bullshitcore_nbt_search(level_data, "Data>RandomSeed");
+							// bullshitcore_nbt_free(level_data);
 							ret = wc_Sha256Hash((const byte *)&seed_hash, sizeof seed_hash, (byte *)&seed_hash);
 							if (unlikely(ret))
 							{
@@ -862,7 +905,7 @@ main(void)
 			else if (unlikely(ret == -1))
 				PERROR_AND_GOTO_DESTROY("inet_pton", server_endpoint)
 			struct sockaddr_storage server_address_data;
-			memcpy((struct sockaddr *)&server_address_data, &(const struct sockaddr_in){ AF_INET, htons(PORT), address }, sizeof(struct sockaddr_in));
+			memcpy(&server_address_data, &(const struct sockaddr_in){ AF_INET, htons(PORT), address }, sizeof(struct sockaddr_in));
 			if (unlikely(bind(server_endpoint, (struct sockaddr *)&server_address_data, sizeof server_address_data) == -1))
 				PERROR_AND_GOTO_DESTROY("bind", server_endpoint)
 		}

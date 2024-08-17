@@ -26,7 +26,7 @@ Run the build script:
 
 - C standard library
 - C POSIX library
-- [Berkeley DB](https://www.oracle.com/database/technologies/related/berkeleydb.html)
+- [cJSON](https://github.com/DaveGamble/cJSON)
 - [wolfSSL](https://www.wolfssl.com)
 - [zlib](https://www.zlib.net)
 
