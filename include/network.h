@@ -1,6 +1,7 @@
 #ifndef BULLSHITCORE_NETWORK
 #define BULLSHITCORE_NETWORK
 
+#include <stddef.h>
 #include <stdint.h>
 #include "nbt.h"
 
@@ -55,9 +56,9 @@ enum State
 	State_Configuration,
 	State_Play
 };
-enum Packet_Handshake
+enum Packet_Handshaking_Client
 {
-	Packet_Handshake
+	Packet_Handshaking_Client_Handshake
 };
 enum Packet_Status_Client
 {

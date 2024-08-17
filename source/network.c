@@ -4,6 +4,8 @@
 #include "global_macros.h"
 #include "network.h"
 
+#define STRING_MAXSIZE 98301
+
 VarInt *
 bullshitcore_network_varint_encode(int32_t value)
 {
@@ -57,7 +59,7 @@ bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * 
 String
 bullshitcore_network_string_java_utf8_encode(UnicodeString codepoints)
 {
-	uint8_t *contents = malloc(98301);
+	uint8_t *contents = malloc(STRING_MAXSIZE);
 	if (unlikely(!contents)) return (String){ 0 };
 	uint32_t codepoint;
 	size_t characters = 0;
