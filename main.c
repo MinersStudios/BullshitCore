@@ -123,22 +123,18 @@ packet_receiver(void *thread_arguments)
 			{
 				case State_Handshaking:
 				{
-					switch (packet_identifier)
+					if (packet_identifier == Packet_Handshaking_Client_Handshake)
 					{
-						case Packet_Handshaking_Client_Handshake:
-						{
-							const uint32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							if (client_protocol_version != PROTOCOL_VERSION)
-								bullshitcore_log_log("Warning! Client and server protocol version mismatch.");
-							const uint32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							const uint32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							if (target_state == State_Status || target_state == State_Login)
-								*connection_state = target_state;
-							break;
-						}
+						const uint32_t client_protocol_version = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+						buffer_offset += packet_next_boundary;
+						if (client_protocol_version != PROTOCOL_VERSION)
+							bullshitcore_log_log("Warning! Client and server protocol version mismatch.");
+						const uint32_t server_address_string_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+						buffer_offset += packet_next_boundary;
+						const uint32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
+						buffer_offset += packet_next_boundary;
+						if (target_state == State_Status || target_state == State_Login)
+							*connection_state = target_state;
 					}
 					break;
 				}

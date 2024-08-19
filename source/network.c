@@ -4,8 +4,6 @@
 #include "global_macros.h"
 #include "network.h"
 
-#define STRING_MAXSIZE 98301
-
 VarInt *
 bullshitcore_network_varint_encode(int32_t value)
 {

@@ -15,6 +15,7 @@ typedef struct
 	VarInt *length;
 	const uint8_t *contents;
 } String;
+#define STRING_MAXSIZE 98301
 typedef struct
 {
 	size_t length;
