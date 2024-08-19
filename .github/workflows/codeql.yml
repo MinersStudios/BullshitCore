@@ -80,9 +80,9 @@ jobs:
     - if: matrix.build-mode == 'manual'
       shell: bash
       run: |
-        echo 'sudo apt update'
-        echo 'sudo apt -y install libwolfssl-dev'
-        echo './build.sh'
+        sudo apt update
+        sudo apt -y install libwolfssl-dev
+        ./build.sh
         exit
 
     - name: Perform CodeQL Analysis
