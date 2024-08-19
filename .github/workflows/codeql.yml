@@ -82,8 +82,7 @@ jobs:
       run: |
         sudo apt update
         sudo apt -y install libcjson-dev libwolfssl-dev zlib1g-dev
-        find /usr/lib -name libwolfssl.so
-        ./build.sh
+        ./build.sh -L/usr/lib/x86_64-linux-gnu
         exit
 
     - name: Perform CodeQL Analysis
