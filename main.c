@@ -22,7 +22,6 @@
 #include "world.h"
 #include "version"
 
-#define PROTOCOL_VERSION 767
 #define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
 #define THREAD_STACK_SIZE 8388608
 #define SEND(...) \
@@ -73,8 +72,8 @@
 
 // config
 #define ADDRESS "0.0.0.0"
-#define FAVICON
-#define MAX_PLAYERS 15
+#define FAVICON ""
+#define MAX_PLAYERS 20
 #define PORT 25565
 #define RENDER_DISTANCE 2
 #define SIMULATION_DISTANCE 5
@@ -144,8 +143,18 @@ packet_receiver(void *thread_arguments)
 					{
 						case Packet_Status_Client_Status_Request:
 						{
-							const uint8_t * const text = (const uint8_t *)"{\"version\":{\"name\":\"" MINECRAFT_VERSION "\",\"protocol\":" EXPAND_AND_STRINGIFY(PROTOCOL_VERSION) "},\"players\":{\"max\":" EXPAND_AND_STRINGIFY(MAX_PLAYERS) ",\"online\":0},\"description\":{\"text\":\"" DESCRIPTION "\"},\"favicon\":\"" FAVICON "\"}";
-							const size_t text_length = strlen((const char *)text);
+							cJSON * const json = cJSON_CreateObject();
+							cJSON * const json_version = cJSON_AddObjectToObject(json, "version");
+							cJSON_AddStringToObject(json_version, "name", MINECRAFT_VERSION);
+							cJSON_AddNumberToObject(json_version, "protocol", PROTOCOL_VERSION);
+							cJSON * const json_players = cJSON_AddObjectToObject(json, "players");
+							cJSON_AddNumberToObject(json_players, "max", MAX_PLAYERS);
+							cJSON_AddNumberToObject(json_players, "online", 0);
+							cJSON * const json_description = cJSON_AddObjectToObject(json, "description");
+							cJSON_AddStringToObject(json_description, "text", DESCRIPTION);
+							cJSON_AddStringToObject(json, "favicon", FAVICON);
+							uint8_t * const text = (uint8_t *)cJSON_PrintUnformatted(json);
+							const size_t text_length = strlen((char *)text);
 							const JSONTextComponent packet_payload =
 							{
 								bullshitcore_network_varint_encode(text_length),
@@ -154,20 +163,23 @@ packet_receiver(void *thread_arguments)
 							if (text_length > JSONTEXTCOMPONENT_MAXSIZE) break;
 							uint8_t packet_payload_length_length;
 							bullshitcore_network_varint_decode(packet_payload.length, &packet_payload_length_length);
-							const size_t packet_length = 1 + packet_payload_length_length + text_length;
-							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_length);
-							uint8_t packet_length_varint_length;
-							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
 							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Status_Server_Status_Response);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length
+								+ packet_payload_length_length
+								+ text_length);
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
 							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
 								(uintptr_t)packet_payload.length, packet_payload_length_length,
 								(uintptr_t)packet_payload.contents, text_length)
+							cJSON_Delete(json);
+							free(text);
 							free(packet_payload.length);
-							free(packet_length_varint);
 							free(packet_identifier_varint);
+							free(packet_length_varint);
 							break;
 						}
 						case Packet_Status_Client_Ping_Request:
