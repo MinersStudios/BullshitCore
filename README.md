@@ -34,3 +34,9 @@ Run the build script:
 
 Not officially supported, but you may use [MSYS2](https://www.msys2.org)
 environment to build an executable yourself at your own risk.
+
+## Usage
+
+1. Open a newly generated executable binary file called `BullshitCore-{Minecraft release}-{BullshitCore release}`.
+2. Open a port set in settings or, if none is set, the default one, 25565, for TCP connections.
+3. Check if the server is running and it is possible to connect by using a Minecraft client with the same version as your release of BullshitCore or through other means.
