@@ -754,7 +754,7 @@ packet_receiver(void *thread_arguments)
 				}
 			}
 #ifndef NDEBUG
-			bullshitcore_log_log("Reached an end of the packet jump table.");
+			bullshitcore_log_error("Reached an end of the packet jump table.");
 #endif
 		}
 close_connection:
@@ -770,7 +770,7 @@ clear_stack_receiver:;
 	// TODO: Also pass failed function name
 	const int my_errno = errno;
 #ifndef NDEBUG
-	bullshitcore_log_logf("Receiver thread crashed! %s\n", strerror(my_errno));
+	bullshitcore_log_error_formatted("Receiver thread crashed! %s\n", strerror(my_errno));
 #endif
 	int * const p_my_errno = malloc(sizeof my_errno);
 	if (unlikely(!p_my_errno)) return (void *)1;
@@ -850,7 +850,7 @@ skip_send:
 clear_stack_sender:;
 	const int my_errno = errno;
 #ifndef NDEBUG
-	bullshitcore_log_logf("Sender thread crashed! %s\n", strerror(my_errno));
+	bullshitcore_log_error_formatted("Sender thread crashed! %s\n", strerror(my_errno));
 #endif
 	int * const p_my_errno = malloc(sizeof my_errno);
 	if (unlikely(!p_my_errno)) return (void *)1;
@@ -914,7 +914,7 @@ main(void)
 						char client_address_string[INET_ADDRSTRLEN];
 						if (unlikely(!inet_ntop(AF_INET, &client_address_data_in.sin_addr, client_address_string, sizeof client_address_string)))
 							PERROR_AND_GOTO_DESTROY("inet_ntop", server_endpoint)
-						bullshitcore_log_logf("A client (%s) has connected.\n", client_address_string);
+						bullshitcore_log_log_formatted("A client (%s) has connected.\n", client_address_string);
 					}
 					struct ThreadArguments *thread_arguments = malloc(sizeof *thread_arguments);
 					if (unlikely(!thread_arguments))
