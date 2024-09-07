@@ -1,6 +1,3 @@
-#ifndef BULLSHITCORE_GLOBAL_MACROS
-#define BULLSHITCORE_GLOBAL_MACROS
-
 #ifdef __has_builtin
 # if __has_builtin(__builtin_expect)
 #  define likely(x) __builtin_expect(!!(x), 1)
@@ -21,5 +18,3 @@
 #define NUMOF(array) (sizeof (array) / sizeof *(array))
 #define BYTES(bits) (((bits) + CHAR_BIT - 1) / CHAR_BIT)
 #define OCTETS(bytes) (((bytes) * CHAR_BIT + 7) / 8)
-
-#endif
