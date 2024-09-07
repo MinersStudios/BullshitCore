@@ -1,4 +1,4 @@
-# BullshitCore
+# BullshitCore Українською
 
 MinersStudios' own Minecraft server implementation.
 
