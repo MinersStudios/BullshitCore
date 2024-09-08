@@ -81,18 +81,18 @@ bullshitcore_network_string_java_utf8_encode(UnicodeString codepoints)
 			contents[++characters] = 0x80 | codepoint & 0x3F;
 			++characters;
 		}
-		else if (codepoint <= 0xFFFF)
+		else if (codepoint <= 0xFFFFU)
 		{
-			if (codepoint >= 0xD800 && codepoint <= 0xDFFF) continue;
+			if (codepoint >= 0xD800U && codepoint <= 0xDFFFU) continue;
 			contents[characters] = 0xE0 | codepoint >> 12 & 0xF;
 			contents[++characters] = 0x80 | codepoint >> 6 & 0x3F;
 			contents[++characters] = 0x80 | codepoint & 0x3F;
 			++characters;
 		}
-		else if (codepoint <= 0x10FFFF)
+		else if (codepoint <= 0x10FFFFL)
 		{
-			contents[characters] = 0xD800 + (codepoint - 0x10000 >> 10);
-			contents[++characters] = 0xDC00 + (codepoint - 0x10000 & 0x3FF);
+			contents[characters] = 0xD800U + (codepoint - 0x10000L >> 10);
+			contents[++characters] = 0xDC00U + (codepoint - 0x10000L & 0x3FF);
 			++characters;
 		}
 	}

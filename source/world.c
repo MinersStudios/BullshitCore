@@ -8,7 +8,7 @@
 #define REGION_FILE_NAME_MAX_SIZE 61
 
 uint8_t *
-bullshitcore_world_get_chunk(long x, long z)
+bullshitcore_world_chunk_load(long x, long z)
 {
 	uint8_t region_file_name[REGION_FILE_NAME_MAX_SIZE];
 	if (unlikely(sprintf((char *)region_file_name, "world/region/r.%ld.%ld.mca", x / 32, z / 32) < 0))
@@ -23,7 +23,7 @@ bullshitcore_world_get_chunk(long x, long z)
 	if (unlikely(fseeko(region, (chunk_location >> 8) * 4096, SEEK_SET) == -1))
 		goto close_file;
 	uint32_t chunk_size;
-	if (fread(&chunk_size, 1, 4, region) < 4) goto free_memory;
+	if (fread(&chunk_size, 1, 4, region) < 4) goto close_file;
 	--chunk_size;
 	{
 		uint8_t * const chunk = malloc(chunk_size);
