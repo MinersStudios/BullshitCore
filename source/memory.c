@@ -11,6 +11,12 @@ struct PointerMap
 } pointer_map[256] = { { NULL } };
 
 // thread unsafe
+// issues: linear search is going to take a lot of time; tiny memory regions
+// are going to deplete the capacity, rendering the map useless.
+// solution to 1st issue - perform faster lookup by separating free and
+// currently used pointers into separate maps and place pointers in order
+// depending on the size of memory region allocated.
+// solution to 2nd issue - eventually resize memory regions by yourself.
 void *
 bullshitcore_memory_retrieve(size_t size)
 {
