@@ -19,6 +19,7 @@
 #include <wolfssl/wolfcrypt/hash.h>
 #include "global_macros.h"
 #include "log.h"
+#include "memory.h"
 #include "network.h"
 #include "registries.h"
 #include "version"
@@ -916,16 +917,16 @@ main(void)
 							PERROR_AND_GOTO_DESTROY("inet_ntop", server_endpoint)
 						bullshitcore_log_log_formatted("A client (%s) has connected.\n", client_address_string);
 					}
-					struct ThreadArguments *thread_arguments = malloc(sizeof *thread_arguments);
+					struct ThreadArguments *thread_arguments = bullshitcore_memory_retrieve(sizeof *thread_arguments);
 					if (unlikely(!thread_arguments))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-					uint8_t *interthread_buffer = malloc(sizeof *interthread_buffer * PACKET_MAXSIZE); // free me
+					uint8_t *interthread_buffer = bullshitcore_memory_retrieve(sizeof *interthread_buffer * PACKET_MAXSIZE); // free me
 					if (unlikely(!interthread_buffer))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-					size_t *interthread_buffer_length = malloc(sizeof *interthread_buffer_length); // free me
+					size_t *interthread_buffer_length = bullshitcore_memory_retrieve(sizeof *interthread_buffer_length); // free me
 					if (unlikely(!interthread_buffer_length))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-					pthread_mutex_t *interthread_buffer_mutex = malloc(sizeof *interthread_buffer_mutex); // free me
+					pthread_mutex_t *interthread_buffer_mutex = bullshitcore_memory_retrieve(sizeof *interthread_buffer_mutex); // free me
 					if (unlikely(!interthread_buffer_mutex))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					ret = pthread_mutex_init(interthread_buffer_mutex, NULL);
@@ -934,7 +935,7 @@ main(void)
 						errno = ret;
 						PERROR_AND_GOTO_DESTROY("pthread_mutex_init", client_endpoint)
 					}
-					pthread_cond_t *interthread_buffer_condition = malloc(sizeof *interthread_buffer_condition); // free me
+					pthread_cond_t *interthread_buffer_condition = bullshitcore_memory_retrieve(sizeof *interthread_buffer_condition); // free me
 					if (unlikely(!interthread_buffer_condition))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					ret = pthread_cond_init(interthread_buffer_condition, NULL);
@@ -943,12 +944,12 @@ main(void)
 						errno = ret;
 						PERROR_AND_GOTO_DESTROY("pthread_cond_init", client_endpoint)
 					}
-					sem_t *client_thread_arguments_semaphore = malloc(sizeof *client_thread_arguments_semaphore);
+					sem_t *client_thread_arguments_semaphore = bullshitcore_memory_retrieve(sizeof *client_thread_arguments_semaphore);
 					if (unlikely(!client_thread_arguments_semaphore))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					if (unlikely(sem_init(client_thread_arguments_semaphore, 0, 0) == -1))
 						PERROR_AND_GOTO_DESTROY("sem_init", client_endpoint)
-					enum State *connection_state = malloc(sizeof *connection_state); // free me
+					enum State *connection_state = bullshitcore_memory_retrieve(sizeof *connection_state); // free me
 					if (unlikely(!connection_state))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					*connection_state = State_Handshaking;
