@@ -331,7 +331,9 @@ void *
 bullshitcore_nbt_search(const NBT * restrict nbt, const uint8_t * restrict query)
 {
 	TAG_Compound *root_element = nbt;
-	char *query_copy = strdup((const char *)query);
+	const size_t query_size = strlen((const char *)query) + 1;
+	char *query_copy = bullshitcore_memory_retrieve(query_size);
+	memcpy(query_copy, query, query_size);
 	if (unlikely(!query_copy)) return NULL;
 	for (char *token = strtok(query_copy, ">"); token != NULL; token = strtok(NULL, ">"))
 	{
@@ -365,6 +367,6 @@ bullshitcore_nbt_search(const NBT * restrict nbt, const uint8_t * restrict query
 		}
 		else ++root_element;
 	}
-	bullshitcore_memory_leave(query_copy, strlen((const char *)query) + 1);
+	bullshitcore_memory_leave(query_copy, query_size);
 	return root_element;
 }
