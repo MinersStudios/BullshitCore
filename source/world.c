@@ -1,8 +1,8 @@
 #define _XOPEN_SOURCE 500
 #define _FILE_OFFSET_BITS 64
 #include <stdio.h>
-#include <stdlib.h>
 #include "global_macros.h"
+#include "memory.h"
 #include "world.h"
 
 #define REGION_FILE_NAME_MAX_SIZE 61
@@ -26,13 +26,13 @@ bullshitcore_world_chunk_load(long x, long z)
 	if (fread(&chunk_size, 1, 4, region) < 4) goto close_file;
 	--chunk_size;
 	{
-		uint8_t * const chunk = malloc(chunk_size);
+		uint8_t * const chunk = bullshitcore_memory_retrieve(chunk_size);
 		if (unlikely(!chunk)) goto close_file;
 		if (fread(chunk, 1, chunk_size, region) < chunk_size) goto free_memory;
 		if (unlikely(fclose(region) == EOF)) return NULL;
 		return chunk;
 free_memory:
-		free(chunk);
+		bullshitcore_memory_leave(chunk, chunk_size);
 	}
 close_file:
 	fclose(region);

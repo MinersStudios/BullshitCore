@@ -27,7 +27,7 @@ bullshitcore_log_variadic_log_formatted(const char * restrict format, va_list ap
 void
 bullshitcore_log_error(const char * restrict s)
 {
-	fputs(s, stderr);
+	fprintf(stderr, "%s\n", s);
 }
 
 void bullshitcore_log_error_formatted(const char * restrict format, ...)

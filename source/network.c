@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "global_macros.h"
+#include "memory.h"
 #include "network.h"
 
 VarInt *
@@ -31,7 +32,8 @@ bullshitcore_network_varlong_encode(int64_t value)
 {
 	uint_fast8_t bytes = 1;
 	while (value >> 7 * bytes) ++bytes;
-	VarLong *varlong = calloc(bytes, 1);
+	VarLong *varlong = bullshitcore_memory_retrieve(bytes);
+	memset(varlong, 0, bytes);
 	if (unlikely(!varlong)) return NULL;
 	for (size_t i = 0; i < bytes; ++i)
 		varlong[i] = value >> 7 * i & 0x7F | (i != bytes - 1u) << 7;

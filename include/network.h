@@ -309,9 +309,9 @@ enum Packet_Play_Server
 };
 
 VarInt *bullshitcore_network_varint_encode(int32_t value);
-int32_t bullshitcore_network_varint_decode(const VarInt * const restrict varint, uint8_t * restrict bytes);
+int32_t bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes);
 VarLong *bullshitcore_network_varlong_encode(int64_t value);
-int64_t bullshitcore_network_varlong_decode(const VarLong * const restrict varlong, uint8_t * restrict bytes);
-String bullshitcore_network_string_java_utf8_encode(const UnicodeString codepoints);
+int64_t bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * restrict bytes);
+String bullshitcore_network_string_java_utf8_encode(UnicodeString codepoints);
 
 #endif

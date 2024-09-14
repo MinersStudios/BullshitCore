@@ -1,52 +1,61 @@
+#ifndef NO_DATA_SEGMENT
+# include <pthread.h>
+#endif
 #include <stdlib.h>
 #include "global_macros.h"
-#include "network.h"
 #include "memory.h"
 
-struct PointerMap
+#ifndef NO_DATA_SEGMENT
+static struct Pointer
 {
 	void *region;
 	size_t region_size;
-	Boolean owned;
-} pointer_map[256] = { { NULL } };
+} pointer_map[256]; // free me
+static pthread_mutex_t pointer_map_mutex = PTHREAD_MUTEX_INITIALIZER; // free me
+#endif
 
-// thread unsafe
-// issues: linear search is going to take a lot of time; tiny memory regions
-// are going to deplete the capacity, rendering the map useless.
-// solution to 1st issue - perform faster lookup by separating free and
-// currently used pointers into separate maps and place pointers in order
-// depending on the size of memory region allocated.
-// solution to 2nd issue - eventually resize memory regions by yourself.
 void *
 bullshitcore_memory_retrieve(size_t size)
 {
-	struct PointerMap pointer;
+#ifndef NO_DATA_SEGMENT
+	struct Pointer pointer;
+	int ret = pthread_mutex_lock(&pointer_map_mutex);
+	if (unlikely(ret)) return NULL;
 	for (size_t i = 0; i < NUMOF(pointer_map); ++i)
 	{
 		pointer = pointer_map[i];
-		if (pointer.region_size >= size && !pointer.owned)
-			return pointer.region;
-	}
-	for (size_t i = 0; i < NUMOF(pointer_map); ++i)
-		if (!pointer_map[i].region)
+		if (pointer.region_size >= size)
 		{
-			pointer_map[i].region = malloc(size);
-			if (unlikely(!pointer_map[i].region)) return NULL;
-			pointer_map[i].region_size = size;
-			pointer_map[i].owned = true;
-			return pointer_map[i].region;
+			pointer_map[i].region = NULL;
+			pointer_map[i].region_size = 0;
+			ret = pthread_mutex_unlock(&pointer_map_mutex);
+			if (unlikely(ret)) return NULL;
+			return pointer.region;
 		}
-	return NULL;
+	}
+	ret = pthread_mutex_unlock(&pointer_map_mutex);
+	if (unlikely(ret)) return NULL;
+#endif
+	return malloc(size);
 }
 
-// thread unsafe
 void
-bullshitcore_memory_leave(void *pointer)
+bullshitcore_memory_leave(void * restrict pointer, size_t size)
 {
-	for (size_t i = 0; i < NUMOF(pointer_map); ++i)
-		if (pointer_map[i].region == pointer)
-		{
-			pointer_map[i].owned = false;
-			return;
-		}
+#ifndef NO_DATA_SEGMENT
+	int ret = pthread_mutex_lock(&pointer_map_mutex);
+	if (unlikely(ret)) return;
+	for (size_t i = 0; i < NUMOF(pointer_map); ++i) if (!pointer_map[i].region)
+	{
+		pointer_map[i].region = pointer;
+		pointer_map[i].region_size = size;
+		ret = pthread_mutex_unlock(&pointer_map_mutex);
+		if (unlikely(ret)) return;
+		return;
+	}
+	ret = pthread_mutex_unlock(&pointer_map_mutex);
+	if (unlikely(ret)) return;
+#else
+	free(pointer);
+#endif
 }
