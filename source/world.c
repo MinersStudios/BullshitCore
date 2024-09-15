@@ -1,6 +1,7 @@
 #define _XOPEN_SOURCE 500
 #define _FILE_OFFSET_BITS 64
 #include <stdio.h>
+#include <zlib.h>
 #include "global_macros.h"
 #include "memory.h"
 #include "world.h"
@@ -26,9 +27,15 @@ bullshitcore_world_chunk_load(long x, long z)
 	if (fread(&chunk_size, 1, 4, region) < 4) goto close_file;
 	--chunk_size;
 	{
+		const int8_t compression_scheme = getc(region);
+		if (compression_scheme == EOF) goto close_file;
 		uint8_t * const chunk = bullshitcore_memory_retrieve(chunk_size);
 		if (unlikely(!chunk)) goto close_file;
 		if (fread(chunk, 1, chunk_size, region) < chunk_size) goto free_memory;
+		{
+			z_stream stream = { chunk, chunk_size, .zalloc = Z_NULL, Z_NULL, Z_NULL };
+			if (unlikely(inflateInit(&stream))) goto free_memory;
+		}
 		if (unlikely(fclose(region) == EOF)) return NULL;
 		return chunk;
 free_memory:

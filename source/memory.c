@@ -49,8 +49,7 @@ bullshitcore_memory_leave(void * restrict pointer, size_t size)
 	{
 		pointer_map[i].region = pointer;
 		pointer_map[i].region_size = size;
-		ret = pthread_mutex_unlock(&pointer_map_mutex);
-		if (unlikely(ret)) return;
+		pthread_mutex_unlock(&pointer_map_mutex);
 		return;
 	}
 	ret = pthread_mutex_unlock(&pointer_map_mutex);

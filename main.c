@@ -69,6 +69,7 @@
 #define RENDER_DISTANCE 2
 #define SIMULATION_DISTANCE 5
 #define DESCRIPTION "BullshitCore is up and running!"
+#define SERVER_BRAND "BullshitCore"
 
 struct ThreadArguments
 {
@@ -424,6 +425,22 @@ packet_receiver(void *thread_arguments)
 								+ (sizeof(float) >= 4 ? 4 : sizeof(float)));
 							uint8_t packet_2_length_varint_length;
 							bullshitcore_network_varint_decode(packet_2_length_varint, &packet_2_length_varint_length);
+							VarInt * const packet_3_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Plugin_Message);
+							uint8_t packet_3_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_3_identifier_varint, &packet_3_identifier_varint_length);
+							const Identifier channel_identifier = { bullshitcore_network_varint_encode(strlen("minecraft:brand")), (const uint8_t *)"minecraft:brand" };
+							uint8_t channel_identifier_length_varint_length;
+							bullshitcore_network_varint_decode(channel_identifier.length, &channel_identifier_length_varint_length);
+							const String server_brand = { bullshitcore_network_varint_encode(strlen(SERVER_BRAND)), (const uint8_t *)SERVER_BRAND };
+							uint8_t server_brand_length_varint_length;
+							bullshitcore_network_varint_decode(server_brand.length, &server_brand_length_varint_length);
+							VarInt * const packet_3_length_varint = bullshitcore_network_varint_encode(packet_3_identifier_varint_length
+								+ channel_identifier_length_varint_length
+								+ bullshitcore_network_varint_decode(channel_identifier.length, NULL)
+								+ server_brand_length_varint_length
+								+ bullshitcore_network_varint_decode(server_brand.length, NULL));
+							uint8_t packet_3_length_varint_length;
+							bullshitcore_network_varint_decode(packet_3_length_varint, &packet_3_length_varint_length);
 							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
 								(uintptr_t)&(const int32_t){ 0 }, sizeof(int32_t),
@@ -455,7 +472,13 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)packet_2_length_varint, packet_2_length_varint_length,
 								(uintptr_t)packet_2_identifier_varint, packet_2_identifier_varint_length,
 								(uintptr_t)&(const uint8_t){ 13 }, sizeof(uint8_t),
-								(uintptr_t)&(const float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float))
+								(uintptr_t)&(const float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float),
+								(uintptr_t)packet_3_length_varint, packet_3_length_varint_length,
+								(uintptr_t)packet_3_identifier_varint, packet_3_identifier_varint_length,
+								(uintptr_t)channel_identifier.length, channel_identifier_length_varint_length,
+								(uintptr_t)channel_identifier.contents, bullshitcore_network_varint_decode(channel_identifier.length, NULL),
+								(uintptr_t)server_brand.length, server_brand_length_varint_length,
+								(uintptr_t)server_brand.contents, bullshitcore_network_varint_decode(server_brand.length, NULL))
 							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
 							bullshitcore_memory_leave(dimension_count_varint, dimension_count_varint_length);
 							bullshitcore_memory_leave(dimensions[0].length, dimension_1_length_length);
@@ -469,6 +492,10 @@ packet_receiver(void *thread_arguments)
 							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
 							bullshitcore_memory_leave(packet_2_identifier_varint, packet_2_identifier_varint_length);
 							bullshitcore_memory_leave(packet_2_length_varint, packet_2_length_varint_length);
+							bullshitcore_memory_leave(packet_3_identifier_varint, packet_3_identifier_varint_length);
+							bullshitcore_memory_leave(channel_identifier.length, channel_identifier_length_varint_length);
+							bullshitcore_memory_leave(server_brand.length, server_brand_length_varint_length);
+							bullshitcore_memory_leave(packet_3_length_varint, packet_3_length_varint_length);
 							break;
 						}
 						case Packet_Configuration_Client_Keep_Alive:
