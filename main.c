@@ -97,18 +97,21 @@ packet_receiver(void *thread_arguments)
 		if (unlikely(sem_post(((struct ThreadArguments *)thread_arguments)->client_thread_arguments_semaphore) == -1))
 			goto clear_stack_receiver;
 		Boolean compression_enabled = false;
-		int8_t buffer[PACKET_MAXSIZE];
+		PlayerInformation player_information = { 0 };
+		ssize_t bytes_read;
+		int8_t *buffer = bullshitcore_memory_retrieve(PACKET_MAXSIZE);
 		uint8_t packet_next_boundary;
 		size_t buffer_offset;
+		uint32_t packet_identifier;
 		int ret;
 		while (1)
 		{
-			const ssize_t bytes_read = recv(client_endpoint, buffer, PACKET_MAXSIZE, 0);
+			bytes_read = recv(client_endpoint, buffer, PACKET_MAXSIZE, 0);
 			if (!bytes_read) goto close_connection;
 			else if (unlikely(bytes_read == -1)) goto clear_stack_receiver;
 			bullshitcore_network_varint_decode(buffer, &packet_next_boundary);
 			buffer_offset = packet_next_boundary;
-			const uint32_t packet_identifier = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+			packet_identifier = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 			buffer_offset += packet_next_boundary;
 			switch (*connection_state)
 			{
@@ -310,6 +313,23 @@ packet_receiver(void *thread_arguments)
 					{
 						case Packet_Configuration_Client_Client_Information:
 						{
+							const uint32_t locale_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							memcpy(player_information.locale, buffer + buffer_offset, locale_length > NUMOF(player_information.locale) ? NUMOF(player_information.locale) : locale_length);
+							buffer_offset += locale_length;
+							player_information.render_distance = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.chat_mode = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							player_information.color_chat = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.displayed_skin_parts = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.main_hand = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							player_information.text_filtering = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.listing = buffer[buffer_offset];
 							break;
 						}
 						case Packet_Configuration_Client_Cookie_Response:
@@ -323,17 +343,6 @@ packet_receiver(void *thread_arguments)
 						case Packet_Configuration_Client_Finish_Configuration_Acknowledge:
 						{
 							*connection_state = State_Play;
-							// FILE *level_data_file = fopen("world/level.dat", "r");
-							// if (unlikely(!level_data_file))
-							// 	goto clear_stack_receiver;
-							// NBT *level_data = bullshitcore_nbt_read(level_data_file);
-							// if (unlikely(!level_data))
-							// {
-							// 	fclose(level_data_file);
-							// 	goto clear_stack_receiver;
-							// }
-							// if (unlikely(fclose(level_data_file) == EOF))
-							// 	goto clear_stack_receiver;
 							VarInt *packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Login);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
@@ -377,8 +386,6 @@ packet_receiver(void *thread_arguments)
 							uint8_t dimension_type_varint_length;
 							bullshitcore_network_varint_decode(dimension_type_varint, &dimension_type_varint_length);
 							int64_t seed_hash = 0;
-							// int64_t seed_hash = *(int64_t *)bullshitcore_nbt_search(level_data, "Data>RandomSeed");
-							// bullshitcore_nbt_bullshitcore_memory_leave(level_data);
 							ret = wc_Sha256Hash((const byte *)&seed_hash, sizeof seed_hash, (byte *)&seed_hash);
 							if (unlikely(ret))
 							{
@@ -587,6 +594,23 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Play_Client_Client_Information:
 						{
+							const uint32_t locale_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							memcpy(player_information.locale, buffer + buffer_offset, locale_length > NUMOF(player_information.locale) ? NUMOF(player_information.locale) : locale_length);
+							buffer_offset += locale_length;
+							player_information.render_distance = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.chat_mode = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							player_information.color_chat = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.displayed_skin_parts = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.main_hand = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							buffer_offset += packet_next_boundary;
+							player_information.text_filtering = buffer[buffer_offset];
+							++buffer_offset;
+							player_information.listing = buffer[buffer_offset];
 							break;
 						}
 						case Packet_Play_Client_Command_Suggestions_Request:
@@ -595,6 +619,7 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Play_Client_Acknowledge_Configuration:
 						{
+							*connection_state = State_Configuration;
 							break;
 						}
 						case Packet_Play_Client_Click_Container_Button:
@@ -679,6 +704,17 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Play_Client_Ping_Request:
 						{
+							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Ping_Response);
+							uint8_t packet_identifier_varint_length;
+							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
+							VarInt * const packet_length_varint = bullshitcore_network_varint_encode(packet_identifier_varint_length + 8);
+							uint8_t packet_length_varint_length;
+							bullshitcore_network_varint_decode(packet_length_varint, &packet_length_varint_length);
+							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
+								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
+								(uintptr_t)buffer, 8)
+							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
 							break;
 						}
 						case Packet_Play_Client_Place_Recipe:
@@ -792,18 +828,20 @@ close_connection:
 			errno = ret;
 			goto clear_stack_receiver;
 		}
+		bullshitcore_memory_leave(buffer, PACKET_MAXSIZE);
+		return NULL;
+clear_stack_receiver:
+		bullshitcore_memory_leave(buffer, PACKET_MAXSIZE);
 	}
-	return NULL;
-clear_stack_receiver:;
-	// TODO: Also pass failed function name
-	const int my_errno = errno;
+	// TODO: Also pass failed function name.
+	const int errno_copy = errno;
 #ifndef NDEBUG
-	bullshitcore_log_error_formatted("Receiver thread crashed! %s\n", strerror(my_errno));
+	bullshitcore_log_error_formatted("Receiver thread crashed! %s\n", strerror(errno_copy));
 #endif
-	int * const p_my_errno = bullshitcore_memory_retrieve(sizeof my_errno);
-	if (unlikely(!p_my_errno)) return (void *)1;
-	*p_my_errno = my_errno;
-	return p_my_errno;
+	int * const p_errno_copy = bullshitcore_memory_retrieve(sizeof errno_copy);
+	if (unlikely(!p_errno_copy)) return (void *)1;
+	*p_errno_copy = errno_copy;
+	return p_errno_copy;
 }
 
 static void *

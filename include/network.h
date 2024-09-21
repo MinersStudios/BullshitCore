@@ -307,6 +307,38 @@ enum Packet_Play_Server
 	Packet_Play_Server_Custom_Report_Details,
 	Packet_Play_Server_Server_Links
 };
+enum Chat_Mode
+{
+	Chat_Mode_Full,
+	Chat_Mode_Commands_Only,
+	Chat_Mode_Hidden
+};
+enum Skin_Part
+{
+	Skin_Part_Cape = 1,
+	Skin_Part_Jacket,
+	Skin_Part_Left_Sleeve = 4,
+	Skin_Part_Right_Sleeve = 8,
+	Skin_Part_Left_Pants_Leg = 16,
+	Skin_Part_Right_Pants_Leg = 32,
+	Skin_Part_Hat = 64
+};
+enum Hand
+{
+	Hand_Left,
+	Hand_Right
+};
+typedef struct
+{
+	uint8_t locale[16];
+	int8_t render_distance;
+	uint8_t chat_mode;
+	Boolean color_chat;
+	uint8_t displayed_skin_parts;
+	uint8_t main_hand;
+	Boolean text_filtering;
+	Boolean listing;
+} PlayerInformation;
 
 VarInt *bullshitcore_network_varint_encode(int32_t value);
 int32_t bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes);
