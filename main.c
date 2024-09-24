@@ -99,7 +99,7 @@ packet_receiver(void *thread_arguments)
 		Boolean compression_enabled = false;
 		PlayerInformation player_information = { 0 };
 		ssize_t bytes_read;
-		int8_t *buffer = bullshitcore_memory_retrieve(PACKET_MAXSIZE);
+		int8_t buffer[PACKET_MAXSIZE];
 		uint8_t packet_next_boundary;
 		size_t buffer_offset;
 		uint32_t packet_identifier;
@@ -828,11 +828,9 @@ close_connection:
 			errno = ret;
 			goto clear_stack_receiver;
 		}
-		bullshitcore_memory_leave(buffer, PACKET_MAXSIZE);
 		return NULL;
-clear_stack_receiver:
-		bullshitcore_memory_leave(buffer, PACKET_MAXSIZE);
 	}
+clear_stack_receiver:;
 	// TODO: Also pass failed function name.
 	const int errno_copy = errno;
 #ifndef NDEBUG
