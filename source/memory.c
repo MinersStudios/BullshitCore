@@ -1,10 +1,9 @@
 #ifndef NO_DATA_SEGMENT
+# include <errno.h>
 # include <pthread.h>
+# include "global_macros.h"
 #endif
-#include <errno.h>
 #include <stdlib.h>
-#include <string.h>
-#include "global_macros.h"
 #include "memory.h"
 
 #ifndef NO_DATA_SEGMENT
@@ -32,7 +31,8 @@ bullshitcore_memory_retrieve(size_t size)
 		pointer = pointer_map[i];
 		if (pointer.region_size >= size)
 		{
-			memset(pointer_map + i, 0, sizeof *pointer_map);
+			pointer_map[i].region = NULL;
+			pointer_map[i].region_size = 0;
 			ret = pthread_mutex_unlock(&pointer_map_mutex);
 			if (unlikely(ret))
 			{

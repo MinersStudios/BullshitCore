@@ -17,6 +17,7 @@
 // ADD NEW WOLFSSL HEADERS AFTER THIS LINE
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
+#include "config.h"
 #include "global_macros.h"
 #include "log.h"
 #include "memory.h"
@@ -60,16 +61,6 @@
 }
 #define PACKET_MAXSIZE 2097151
 #define ACTUAL_SIMULATION_DISTANCE RENDER_DISTANCE <= SIMULATION_DISTANCE ? RENDER_DISTANCE : SIMULATION_DISTANCE
-
-// config
-#define ADDRESS "0.0.0.0"
-#define FAVICON ""
-#define MAX_PLAYERS 20
-#define PORT 25565
-#define RENDER_DISTANCE 2
-#define SIMULATION_DISTANCE 5
-#define DESCRIPTION "BullshitCore is up and running!"
-#define SERVER_BRAND "BullshitCore"
 
 struct ThreadArguments
 {
