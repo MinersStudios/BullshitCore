@@ -22,6 +22,8 @@ Run the build script:
 ./build.sh [additional build arguments]
 ```
 
+Note: [GCC](https://gcc.gnu.org) is used by default, but you may use any compiler you want by editing `build.sh` directly.
+
 ### Dependencies
 
 - C standard library
