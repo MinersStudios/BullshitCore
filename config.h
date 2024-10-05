@@ -4,5 +4,5 @@
 #define PORT 25565
 #define RENDER_DISTANCE 2
 #define SIMULATION_DISTANCE 5
-#define DESCRIPTION "BullshitCore is up and running!"
+#define DESCRIPTION "A Minecraft Server"
 #define SERVER_BRAND "BullshitCore"
