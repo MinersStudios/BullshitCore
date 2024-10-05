@@ -27,7 +27,7 @@
 #include "world.h"
 
 #define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
-#define THREAD_STACK_SIZE 8388608
+#define THREAD_STACK_SIZE 8388608L
 #define SEND(...) \
 { \
 	const uintptr_t args[] = { __VA_ARGS__ }; \
@@ -59,8 +59,8 @@
 		goto clear_stack_receiver; \
 	} \
 }
-#define PACKET_MAXSIZE 2097151
-#define ACTUAL_SIMULATION_DISTANCE RENDER_DISTANCE <= SIMULATION_DISTANCE ? RENDER_DISTANCE : SIMULATION_DISTANCE
+#define PACKET_MAXSIZE 2097151L
+#define ACTUAL_SIMULATION_DISTANCE (RENDER_DISTANCE <= SIMULATION_DISTANCE ? RENDER_DISTANCE : SIMULATION_DISTANCE)
 
 struct ThreadArguments
 {

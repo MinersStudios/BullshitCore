@@ -15,7 +15,7 @@ typedef struct
 	VarInt *length;
 	const uint8_t *contents;
 } String;
-#define STRING_MAXSIZE 98301
+#define STRING_MAXSIZE 98301L
 typedef struct
 {
 	size_t length;
@@ -23,7 +23,7 @@ typedef struct
 } UnicodeString;
 typedef NBT TextComponent;
 typedef String JSONTextComponent;
-#define JSONTEXTCOMPONENT_MAXSIZE 262144
+#define JSONTEXTCOMPONENT_MAXSIZE 262144L
 typedef String Identifier;
 #define IDENTIFIER_MAXSIZE 32767
 typedef struct
