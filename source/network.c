@@ -59,7 +59,7 @@ bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * 
 String
 bullshitcore_network_string_java_utf8_encode(UnicodeString codepoints)
 {
-	uint8_t *contents = malloc(STRING_MAXSIZE);
+	uint8_t *contents = bullshitcore_memory_retrieve(STRING_MAXSIZE);
 	if (unlikely(!contents)) return (String){ 0 };
 	uint32_t codepoint;
 	size_t characters = 0;

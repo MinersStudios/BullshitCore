@@ -1,4 +1,4 @@
-#ifndef NO_DATA_SEGMENT
+#ifdef BULLSHITCORE_EXPERIMENTAL_MEMORY_CACHING
 # include <errno.h>
 # include <pthread.h>
 # include "global_macros.h"
@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include "memory.h"
 
-#ifndef NO_DATA_SEGMENT
+#ifdef BULLSHITCORE_EXPERIMENTAL_MEMORY_CACHING
 static struct Pointer
 {
 	void *region;
@@ -18,7 +18,7 @@ static pthread_mutex_t pointer_map_mutex = PTHREAD_MUTEX_INITIALIZER;
 void *
 bullshitcore_memory_retrieve(size_t size)
 {
-#ifndef NO_DATA_SEGMENT
+#ifdef BULLSHITCORE_EXPERIMENTAL_MEMORY_CACHING
 	struct Pointer pointer;
 	int ret = pthread_mutex_lock(&pointer_map_mutex);
 	if (unlikely(ret))
@@ -55,7 +55,7 @@ bullshitcore_memory_retrieve(size_t size)
 void
 bullshitcore_memory_leave(void * restrict pointer, size_t size)
 {
-#ifndef NO_DATA_SEGMENT
+#ifdef BULLSHITCORE_EXPERIMENTAL_MEMORY_CACHING
 	int ret = pthread_mutex_lock(&pointer_map_mutex);
 	if (unlikely(ret))
 	{
