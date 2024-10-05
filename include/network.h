@@ -330,7 +330,7 @@ enum Hand
 };
 typedef struct
 {
-	uint8_t locale[16];
+	uint8_t locale[17];
 	int8_t render_distance;
 	uint8_t chat_mode;
 	Boolean color_chat;
