@@ -10,7 +10,6 @@
 #ifndef unlikely
 # define unlikely(x) (x)
 #endif
-
 #define PERROR_AND_EXIT(s) { perror(s); exit(EXIT_FAILURE); }
 #define EXPAND_AND_STRINGIFY(x) STRINGIFY(x)
 #define STRINGIFY(x) #x
