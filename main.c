@@ -937,7 +937,11 @@ main(void)
 			PERROR_AND_GOTO_DESTROY("setsockopt", server_endpoint)
 		{
 			struct in_addr address;
+#ifdef IPV6
+			ret = inet_pton(AF_INET6, ADDRESS, &address);
+#else
 			ret = inet_pton(AF_INET, ADDRESS, &address);
+#endif
 			if (!ret)
 			{
 				fputs("An invalid server address was specified.\n", stderr);
