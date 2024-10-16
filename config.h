@@ -26,10 +26,10 @@
 // An integer in the range [0, 65535] signifying the port to listen on.
 #define PORT 25565
 // An integer in the range [2, 32] signifying the radius in chunks (16 by 16
-// blocks areas) of the world data to be sent to the client.
+// blocks areas) of the world data to send to the client.
 #define RENDER_DISTANCE 2
 // A brand of the server to show in the crash logs and on the debug screen.
 #define SERVER_BRAND "BullshitCore"
 // An integer in the range [5, 32] signifying the radius in chunks (16 by 16
-// blocks areas) for entities to be simulated.
+// blocks areas) for entities to get simulated around a player.
 #define SIMULATION_DISTANCE 5

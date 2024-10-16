@@ -31,8 +31,7 @@
 #define SEND(...) \
 { \
 	const uintptr_t args[] = { __VA_ARGS__ }; \
-	size_t data_length; \
-	size_t interthread_buffer_offset = 0; \
+	size_t data_length, interthread_buffer_offset = 0; \
 	ret = pthread_mutex_lock(interthread_buffer_mutex); \
 	if (unlikely(ret)) \
 	{ \
@@ -42,7 +41,7 @@
 	for (size_t i = 0; i < NUMOF(args); i += 2) \
 	{ \
 		data_length = (size_t)args[i + 1]; \
-		memcpy(interthread_buffer + interthread_buffer_offset, (uint8_t *)args[i], data_length); \
+		memcpy(interthread_buffer + interthread_buffer_offset, (void *)args[i], data_length); \
 		interthread_buffer_offset += data_length; \
 	} \
 	*interthread_buffer_length = interthread_buffer_offset; \
