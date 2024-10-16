@@ -9,7 +9,7 @@
 // the physical block size of the storage device where the world data is
 // stored.
 #define CHUNK_READ_BUFFER_SIZE "512"
-// A description of the server to be shown on the servers list screen.
+// A description of the server to show on the servers list screen.
 #define DESCRIPTION "A Minecraft Server"
 // A base64 data URI for a PNG image (alpha channel is supported) with
 // dimensions of 64 x 64 pixels to display as the icon of the server.
@@ -20,8 +20,8 @@
 // number of players allowed on the server. Due to limitations associated with
 // the current configuration parsing, adding the L suffix to signify a long
 // integer will cause the ping to fail, making the effective range be at least
-// [-32768, 32767]. Currently only affects the number displayed on the servers
-// list screen.
+// [-32768, 32767]. Currently only affects the number on the servers list
+// screen.
 #define MAX_PLAYERS 20
 // An integer in the range [0, 65535] signifying the port to listen on.
 #define PORT 25565
