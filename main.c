@@ -978,6 +978,7 @@ main(void)
 						PERROR_AND_GOTO_DESTROY("accept", server_endpoint)
 					memcpy(&client_address_data_in, &client_address_data, sizeof client_address_data_in);
 					{
+						// TODO: Show IPv6 connections.
 						char client_address_string[INET_ADDRSTRLEN];
 						if (unlikely(!inet_ntop(AF_INET, &client_address_data_in.sin_addr, client_address_string, sizeof client_address_string)))
 							PERROR_AND_GOTO_DESTROY("inet_ntop", server_endpoint)
