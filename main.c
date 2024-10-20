@@ -929,16 +929,21 @@ main(void)
 		PERROR_AND_GOTO_DESTROY("pthread_attr_setstacksize", thread_attributes)
 	}
 	{
+#ifdef IPV6
+		const int server_endpoint = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+#else
 		const int server_endpoint = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+#endif
 		if (unlikely(server_endpoint == -1))
 			PERROR_AND_GOTO_DESTROY("socket", thread_attributes)
 		if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &(const int){ 1 }, sizeof(int)) == -1))
 			PERROR_AND_GOTO_DESTROY("setsockopt", server_endpoint)
 		{
-			struct in_addr address;
 #ifdef IPV6
+			struct in6_addr address;
 			ret = inet_pton(AF_INET6, ADDRESS, &address);
 #else
+			struct in_addr address;
 			ret = inet_pton(AF_INET, ADDRESS, &address);
 #endif
 			if (!ret)
@@ -949,7 +954,11 @@ main(void)
 			else if (unlikely(ret == -1))
 				PERROR_AND_GOTO_DESTROY("inet_pton", server_endpoint)
 			struct sockaddr_storage server_address_data;
+#ifdef IPV6
+			memcpy(&server_address_data, &(const struct sockaddr_in6){ AF_INET6, htons(PORT), 0, address, 0 }, sizeof(struct sockaddr_in6));
+#else
 			memcpy(&server_address_data, &(const struct sockaddr_in){ AF_INET, htons(PORT), address }, sizeof(struct sockaddr_in));
+#endif
 			if (unlikely(bind(server_endpoint, (struct sockaddr *)&server_address_data, sizeof server_address_data) == -1))
 				PERROR_AND_GOTO_DESTROY("bind", server_endpoint)
 		}
