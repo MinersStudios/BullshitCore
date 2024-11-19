@@ -48,14 +48,14 @@ typedef struct
 	uint64_t data[];
 } BitSet;
 typedef uint8_t FixedBitSet[];
-enum State
+enum Connection_State
 {
-	State_Handshaking,
-	State_Status,
-	State_Login,
-	State_Transfer,
-	State_Configuration,
-	State_Play
+	Connection_State_Handshaking,
+	Connection_State_Status,
+	Connection_State_Login,
+	Connection_State_Transfer,
+	Connection_State_Configuration,
+	Connection_State_Play
 };
 enum Packet_Handshaking_Client
 {

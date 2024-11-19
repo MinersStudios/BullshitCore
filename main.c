@@ -69,7 +69,7 @@ struct ThreadArguments
 	pthread_mutex_t *interthread_buffer_mutex;
 	pthread_cond_t *interthread_buffer_condition;
 	sem_t *client_thread_arguments_semaphore;
-	enum State *connection_state;
+	enum Connection_State *connection_state;
 	pthread_t sender_thread;
 };
 
@@ -82,7 +82,7 @@ packet_receiver(void *thread_arguments)
 		size_t * const interthread_buffer_length = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_length;
 		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_mutex;
 		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_condition;
-		enum State * const connection_state = ((struct ThreadArguments *)thread_arguments)->connection_state;
+		enum Connection_State * const connection_state = ((struct ThreadArguments *)thread_arguments)->connection_state;
 		const pthread_t sender_thread = ((struct ThreadArguments *)thread_arguments)->sender_thread;
 		if (unlikely(sem_post(((struct ThreadArguments *)thread_arguments)->client_thread_arguments_semaphore) == -1))
 			goto clear_stack_receiver;
@@ -105,7 +105,7 @@ packet_receiver(void *thread_arguments)
 			buffer_offset += packet_next_boundary;
 			switch (*connection_state)
 			{
-				case State_Handshaking:
+				case Connection_State_Handshaking:
 				{
 					if (packet_identifier == Packet_Handshaking_Client_Handshake)
 					{
@@ -117,12 +117,12 @@ packet_receiver(void *thread_arguments)
 						buffer_offset += packet_next_boundary;
 						const uint32_t target_state = bullshitcore_network_varint_decode(buffer + buffer_offset + server_address_string_length + 2, &packet_next_boundary);
 						buffer_offset += packet_next_boundary;
-						if (target_state == State_Status || target_state == State_Login)
+						if (target_state == Connection_State_Status || target_state == Connection_State_Login)
 							*connection_state = target_state;
 					}
 					break;
 				}
-				case State_Status:
+				case Connection_State_Status:
 				{
 					switch (packet_identifier)
 					{
@@ -174,7 +174,7 @@ packet_receiver(void *thread_arguments)
 					}
 					break;
 				}
-				case State_Login:
+				case Connection_State_Login:
 				{
 					switch (packet_identifier)
 					{
@@ -243,7 +243,7 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Login_Client_Login_Acknowledged:
 						{
-							*connection_state = State_Configuration;
+							*connection_state = Connection_State_Configuration;
 							VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Configuration_Server_Known_Packs);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
@@ -293,11 +293,11 @@ packet_receiver(void *thread_arguments)
 					}
 					break;
 				}
-				case State_Transfer:
+				case Connection_State_Transfer:
 				{
 					break;
 				}
-				case State_Configuration:
+				case Connection_State_Configuration:
 				{
 					switch (packet_identifier)
 					{
@@ -332,7 +332,7 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Configuration_Client_Finish_Configuration_Acknowledge:
 						{
-							*connection_state = State_Play;
+							*connection_state = Connection_State_Play;
 							VarInt *packet_identifier_varint = bullshitcore_network_varint_encode(Packet_Play_Server_Login);
 							uint8_t packet_identifier_varint_length;
 							bullshitcore_network_varint_decode(packet_identifier_varint, &packet_identifier_varint_length);
@@ -538,7 +538,7 @@ packet_receiver(void *thread_arguments)
 					}
 					break;
 				}
-				case State_Play:
+				case Connection_State_Play:
 				{
 					switch (packet_identifier)
 					{
@@ -609,7 +609,7 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Play_Client_Acknowledge_Configuration:
 						{
-							*connection_state = State_Configuration;
+							*connection_state = Connection_State_Configuration;
 							break;
 						}
 						case Packet_Play_Client_Click_Container_Button:
@@ -847,7 +847,7 @@ packet_sender(void *thread_arguments)
 		size_t * const interthread_buffer_length = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_length;
 		pthread_mutex_t * const interthread_buffer_mutex = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_mutex;
 		pthread_cond_t * const interthread_buffer_condition = ((struct ThreadArguments *)thread_arguments)->interthread_buffer_condition;
-		enum State * const connection_state = ((struct ThreadArguments *)thread_arguments)->connection_state;
+		enum Connection_State * const connection_state = ((struct ThreadArguments *)thread_arguments)->connection_state;
 		if (unlikely(sem_post(((struct ThreadArguments *)thread_arguments)->client_thread_arguments_semaphore) == -1))
 			goto clear_stack_sender;
 		struct timespec keep_alive_timeout;
@@ -865,9 +865,9 @@ packet_sender(void *thread_arguments)
 			ret = pthread_cond_timedwait(interthread_buffer_condition, interthread_buffer_mutex, &keep_alive_timeout);
 			if (ret == ETIMEDOUT)
 			{
-				if (*connection_state != State_Configuration && *connection_state != State_Play)
+				if (*connection_state != Connection_State_Configuration && *connection_state != Connection_State_Play)
 					goto skip_send;
-				int32_t packet_identifier = *connection_state == State_Configuration
+				int32_t packet_identifier = *connection_state == Connection_State_Configuration
 					? Packet_Configuration_Server_Keep_Alive
 					: Packet_Play_Server_Keep_Alive;
 				VarInt * const packet_identifier_varint = bullshitcore_network_varint_encode(packet_identifier);
@@ -1016,10 +1016,10 @@ main(void)
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					if (unlikely(sem_init(client_thread_arguments_semaphore, 0, 0) == -1))
 						PERROR_AND_GOTO_DESTROY("sem_init", client_endpoint)
-					enum State *connection_state = bullshitcore_memory_retrieve(sizeof *connection_state); // free me
+					enum Connection_State *connection_state = bullshitcore_memory_retrieve(sizeof *connection_state); // free me
 					if (unlikely(!connection_state))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-					*connection_state = State_Handshaking;
+					*connection_state = Connection_State_Handshaking;
 					*thread_arguments = (struct ThreadArguments)
 					{
 						client_endpoint,
