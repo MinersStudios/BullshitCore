@@ -311,7 +311,7 @@ packet_receiver(void *thread_arguments)
 							++buffer_offset;
 							player_information.chat_mode = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
-							player_information.color_chat = buffer[buffer_offset];
+							player_information.colored_chat = buffer[buffer_offset];
 							++buffer_offset;
 							player_information.displayed_skin_parts = buffer[buffer_offset];
 							++buffer_offset;
@@ -319,7 +319,7 @@ packet_receiver(void *thread_arguments)
 							buffer_offset += packet_next_boundary;
 							player_information.text_filtering = buffer[buffer_offset];
 							++buffer_offset;
-							player_information.listing = buffer[buffer_offset];
+							player_information.server_listing = buffer[buffer_offset];
 							break;
 						}
 						case Packet_Configuration_Client_Cookie_Response:
@@ -592,7 +592,7 @@ packet_receiver(void *thread_arguments)
 							++buffer_offset;
 							player_information.chat_mode = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
-							player_information.color_chat = buffer[buffer_offset];
+							player_information.colored_chat = buffer[buffer_offset];
 							++buffer_offset;
 							player_information.displayed_skin_parts = buffer[buffer_offset];
 							++buffer_offset;
@@ -600,7 +600,7 @@ packet_receiver(void *thread_arguments)
 							buffer_offset += packet_next_boundary;
 							player_information.text_filtering = buffer[buffer_offset];
 							++buffer_offset;
-							player_information.listing = buffer[buffer_offset];
+							player_information.server_listing = buffer[buffer_offset];
 							break;
 						}
 						case Packet_Play_Client_Command_Suggestions_Request:

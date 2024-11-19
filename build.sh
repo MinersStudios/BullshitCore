@@ -22,6 +22,19 @@ case $1 in
 		-Wredundant-decls -Wnested-externs -Wmissing-include-dirs \
 		-Wjump-misses-init -Wlogical-op -I../include -I. -g -pthread ./*.o \
 		../main.c -o "$app-debug" "$@" -lwolfssl;;
+	test)
+		for module in ../test/*.c; do
+			printf %s:\\n "$module"
+			for test in $(awk '/ifdef/ { print $NF }' "$module"); do
+				printf %s:\  "$test"
+				timeout 5 tcc "-run -D$test -I../include -L.. -lbullshitcore-$MINECRAFT_VERSION-$VERSION" \
+				"$module"
+				case $? in
+					124) printf "Timed out.\n";;
+					0) printf Passed.\\n;;
+				esac
+			done
+		done;;
 	*)
 		gcc -c -std=c99 -fPIC -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow \
 		-Wwrite-strings -Wstrict-prototypes -Wold-style-definition \

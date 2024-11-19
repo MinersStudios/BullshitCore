@@ -82,7 +82,7 @@ jobs:
       shell: bash
       run: |
         sudo apt update
-        sudo apt -y install libcjson-dev libwolfssl-dev zlib1g-dev
+        sudo apt -y install libwolfssl-dev
         ./build.sh
         exit
 

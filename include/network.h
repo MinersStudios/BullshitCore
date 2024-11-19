@@ -333,11 +333,11 @@ typedef struct
 	uint8_t locale[17];
 	int8_t render_distance;
 	uint8_t chat_mode;
-	Boolean color_chat;
+	Boolean colored_chat;
 	uint8_t displayed_skin_parts;
 	uint8_t main_hand;
 	Boolean text_filtering;
-	Boolean listing;
+	Boolean server_listing;
 } PlayerInformation;
 
 VarInt *bullshitcore_network_varint_encode(int32_t value);

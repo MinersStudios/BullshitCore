@@ -29,9 +29,7 @@ compiler you want by editing [build.sh](build.sh) directly.
 
 - C standard library
 - C POSIX library
-- [cJSON](https://github.com/DaveGamble/cJSON)
 - [wolfSSL](https://www.wolfssl.com)
-- [zlib](https://www.zlib.net)
 
 ### Windows support
 
