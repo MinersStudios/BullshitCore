@@ -330,14 +330,12 @@ enum Hand
 };
 typedef struct
 {
-	uint8_t locale[17];
+	uint8_t locale[9];
 	int8_t render_distance;
-	uint8_t chat_mode;
-	Boolean colored_chat;
-	uint8_t displayed_skin_parts;
-	uint8_t main_hand;
-	Boolean text_filtering;
-	Boolean server_listing;
+	// Displayed skin parts (7), main hand (1).
+	uint8_t appearance;
+	// Chat mode (3), colored chat (1), text filtering (1), server listing (1).
+	uint8_t online_interaction;
 } PlayerInformation;
 
 VarInt *bullshitcore_network_varint_encode(int32_t value);

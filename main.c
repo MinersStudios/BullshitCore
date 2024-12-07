@@ -303,23 +303,24 @@ packet_receiver(void *thread_arguments)
 					{
 						case Packet_Configuration_Client_Client_Information:
 						{
+gather_client_information:
 							const uint32_t locale_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
 							buffer_offset += packet_next_boundary;
 							memcpy(player_information.locale, buffer + buffer_offset, locale_length > NUMOF(player_information.locale) ? NUMOF(player_information.locale) : locale_length);
 							buffer_offset += locale_length;
 							player_information.render_distance = buffer[buffer_offset];
 							++buffer_offset;
-							player_information.chat_mode = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							player_information.online_interaction = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary) << 5;
 							buffer_offset += packet_next_boundary;
-							player_information.colored_chat = buffer[buffer_offset];
+							player_information.online_interaction |= (buffer[buffer_offset] & 1) << 4;
 							++buffer_offset;
-							player_information.displayed_skin_parts = buffer[buffer_offset];
+							player_information.appearance = buffer[buffer_offset] << 1;
 							++buffer_offset;
-							player_information.main_hand = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
+							player_information.appearance |= bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary) & 1;
 							buffer_offset += packet_next_boundary;
-							player_information.text_filtering = buffer[buffer_offset];
+							player_information.online_interaction |= (buffer[buffer_offset] & 1) << 3;
 							++buffer_offset;
-							player_information.server_listing = buffer[buffer_offset];
+							player_information.online_interaction |= (buffer[buffer_offset] & 1) << 2;
 							break;
 						}
 						case Packet_Configuration_Client_Cookie_Response:
@@ -584,23 +585,7 @@ packet_receiver(void *thread_arguments)
 						}
 						case Packet_Play_Client_Client_Information:
 						{
-							const uint32_t locale_length = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							memcpy(player_information.locale, buffer + buffer_offset, locale_length > NUMOF(player_information.locale) ? NUMOF(player_information.locale) : locale_length);
-							buffer_offset += locale_length;
-							player_information.render_distance = buffer[buffer_offset];
-							++buffer_offset;
-							player_information.chat_mode = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							player_information.colored_chat = buffer[buffer_offset];
-							++buffer_offset;
-							player_information.displayed_skin_parts = buffer[buffer_offset];
-							++buffer_offset;
-							player_information.main_hand = bullshitcore_network_varint_decode(buffer + buffer_offset, &packet_next_boundary);
-							buffer_offset += packet_next_boundary;
-							player_information.text_filtering = buffer[buffer_offset];
-							++buffer_offset;
-							player_information.server_listing = buffer[buffer_offset];
+							goto gather_client_information;
 							break;
 						}
 						case Packet_Play_Client_Command_Suggestions_Request:
