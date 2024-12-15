@@ -1,4 +1,4 @@
-#define MINECRAFT_VERSION "1.21.1"
-#define PROTOCOL_VERSION 767
-// 2>/dev/null; MINECRAFT_VERSION=1.21.1
-// 2>/dev/null; VERSION=0.5.0
+#define MINECRAFT_VERSION "1.21.4"
+#define PROTOCOL_VERSION 769
+// 2>/dev/null; MINECRAFT_VERSION=1.21.4
+// 2>/dev/null; VERSION=0.6.0

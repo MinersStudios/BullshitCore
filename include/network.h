@@ -131,6 +131,7 @@ enum Packet_Play_Client
 	Packet_Play_Client_Player_Session,
 	Packet_Play_Client_Chunk_Batch_Received,
 	Packet_Play_Client_Client_Status,
+	Packet_Play_Client_Tick_End,
 	Packet_Play_Client_Client_Information,
 	Packet_Play_Client_Command_Suggestions_Request,
 	Packet_Play_Client_Acknowledge_Configuration,
@@ -214,6 +215,7 @@ enum Packet_Play_Server
 	Packet_Play_Server_Disconnect,
 	Packet_Play_Server_Disguised_Chat_Message,
 	Packet_Play_Server_Entity_Event,
+	Packet_Play_Server_Synchronise_Entity_Position,
 	Packet_Play_Server_Explosion,
 	Packet_Play_Server_Unload_Chunk,
 	Packet_Play_Server_Game_Event,
@@ -334,7 +336,7 @@ typedef struct
 	int8_t render_distance;
 	// Displayed skin parts (7), main hand (1).
 	uint8_t appearance;
-	// Chat mode (3), colored chat (1), text filtering (1), server listing (1).
+	// Chat mode (3), colored chat (1), text filtering (1), server listing (1), particle status (2).
 	uint8_t online_interaction;
 } PlayerInformation;
 
