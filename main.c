@@ -41,7 +41,7 @@
 	for (size_t i = 0; i < NUMOF(args); i += 2) \
 	{ \
 		data_length = (size_t)args[i + 1]; \
-		memcpy(interthread_buffer + interthread_buffer_offset, (void *)args[i], data_length); \
+		memcpy(interthread_buffer + interthread_buffer_offset, (const void *)args[i], data_length); \
 		interthread_buffer_offset += data_length; \
 	} \
 	*interthread_buffer_length = interthread_buffer_offset; \
