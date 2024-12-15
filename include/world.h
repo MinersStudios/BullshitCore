@@ -1,7 +1,8 @@
 #ifndef BULLSHITCORE_WORLD
 #define BULLSHITCORE_WORLD
 
-int bullshitcore_world_load_world(void);
-int bullshitcore_world_unload_world(void);
+#include <stdint.h>
+
+uint8_t *bullshitcore_world_chunk_load(long x, long z);
 
 #endif

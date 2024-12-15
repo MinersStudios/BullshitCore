@@ -1,25 +1,46 @@
 #include <stdio.h>
 #include "log.h"
 
-// TODO: Perform logging in a separate thread
+// TODO: Perform logging in a separate thread.
 
 void
-bullshitcore_log_log(const char * restrict s)
+bullshitcore_log_log(const char * restrict string)
 {
-	puts(s);
+	puts(string);
 }
 
 void
-bullshitcore_log_logf(const char * restrict format, ...)
+bullshitcore_log_log_formatted(const char * restrict format, ...)
 {
-	va_list ap;
-	va_start(ap, format);
-	vprintf(format, ap);
-	va_end(ap);
+	va_list arguments;
+	va_start(arguments, format);
+	vprintf(format, arguments);
+	va_end(arguments);
 }
 
 void
-bullshitcore_log_vlogf(const char * restrict format, va_list ap)
+bullshitcore_log_variadic_log_formatted(const char * restrict format, va_list arguments)
 {
-	vprintf(format, ap);
+	vprintf(format, arguments);
+}
+
+void
+bullshitcore_log_error(const char * restrict string)
+{
+	fprintf(stderr, "%s\n", string);
+}
+
+void
+bullshitcore_log_error_formatted(const char * restrict format, ...)
+{
+	va_list arguments;
+	va_start(arguments, format);
+	vfprintf(stderr, format, arguments);
+	va_end(arguments);
+}
+
+void
+bullshitcore_log_variadic_error_formatted(const char * restrict format, va_list arguments)
+{
+	vfprintf(stderr, format, arguments);
 }

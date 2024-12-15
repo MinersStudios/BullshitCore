@@ -15,6 +15,7 @@ typedef struct
 	VarInt *length;
 	const uint8_t *contents;
 } String;
+#define STRING_MAXSIZE 98301L
 typedef struct
 {
 	size_t length;
@@ -22,7 +23,7 @@ typedef struct
 } UnicodeString;
 typedef NBT TextComponent;
 typedef String JSONTextComponent;
-#define JSONTEXTCOMPONENT_MAXSIZE 262144
+#define JSONTEXTCOMPONENT_MAXSIZE 262144L
 typedef String Identifier;
 #define IDENTIFIER_MAXSIZE 32767
 typedef struct
@@ -47,14 +48,14 @@ typedef struct
 	uint64_t data[];
 } BitSet;
 typedef uint8_t FixedBitSet[];
-enum State
+enum Connection_State
 {
-	State_Handshaking,
-	State_Status,
-	State_Login,
-	State_Transfer,
-	State_Configuration,
-	State_Play
+	Connection_State_Handshaking,
+	Connection_State_Status,
+	Connection_State_Login,
+	Connection_State_Transfer,
+	Connection_State_Configuration,
+	Connection_State_Play
 };
 enum Packet_Handshaking_Client
 {
@@ -130,6 +131,7 @@ enum Packet_Play_Client
 	Packet_Play_Client_Player_Session,
 	Packet_Play_Client_Chunk_Batch_Received,
 	Packet_Play_Client_Client_Status,
+	Packet_Play_Client_Tick_End,
 	Packet_Play_Client_Client_Information,
 	Packet_Play_Client_Command_Suggestions_Request,
 	Packet_Play_Client_Acknowledge_Configuration,
@@ -213,6 +215,7 @@ enum Packet_Play_Server
 	Packet_Play_Server_Disconnect,
 	Packet_Play_Server_Disguised_Chat_Message,
 	Packet_Play_Server_Entity_Event,
+	Packet_Play_Server_Synchronise_Entity_Position,
 	Packet_Play_Server_Explosion,
 	Packet_Play_Server_Unload_Chunk,
 	Packet_Play_Server_Game_Event,
@@ -306,11 +309,41 @@ enum Packet_Play_Server
 	Packet_Play_Server_Custom_Report_Details,
 	Packet_Play_Server_Server_Links
 };
+enum Chat_Mode
+{
+	Chat_Mode_Full,
+	Chat_Mode_Commands_Only,
+	Chat_Mode_Hidden
+};
+enum Skin_Part
+{
+	Skin_Part_Cape = 1,
+	Skin_Part_Jacket,
+	Skin_Part_Left_Sleeve = 4,
+	Skin_Part_Right_Sleeve = 8,
+	Skin_Part_Left_Pants_Leg = 16,
+	Skin_Part_Right_Pants_Leg = 32,
+	Skin_Part_Hat = 64
+};
+enum Hand
+{
+	Hand_Left,
+	Hand_Right
+};
+typedef struct
+{
+	uint8_t locale[9];
+	int8_t render_distance;
+	// Displayed skin parts (7), main hand (1).
+	uint8_t appearance;
+	// Chat mode (3), colored chat (1), text filtering (1), server listing (1), particle status (2).
+	uint8_t online_interaction;
+} PlayerInformation;
 
 VarInt *bullshitcore_network_varint_encode(int32_t value);
-int32_t bullshitcore_network_varint_decode(const VarInt * const restrict varint, uint8_t * restrict bytes);
+int32_t bullshitcore_network_varint_decode(const VarInt * restrict varint, uint8_t * restrict bytes);
 VarLong *bullshitcore_network_varlong_encode(int64_t value);
-int64_t bullshitcore_network_varlong_decode(const VarLong * const restrict varlong, uint8_t * restrict bytes);
-String bullshitcore_network_string_java_utf8_encode(const UnicodeString codepoints);
+int64_t bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * restrict bytes);
+String bullshitcore_network_string_java_utf8_encode(UnicodeString codepoints);
 
 #endif
