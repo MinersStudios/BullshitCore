@@ -40,6 +40,9 @@ environment to build an executable yourself at your own risk.
 
 1. Open a newly generated executable binary file called
 `BullshitCore-{Minecraft release}-{BullshitCore release}`.
+
+Note: Even if the Minecraft release in the name says otherwise, you should try if it works with a different version, as not 100% of functionality is implemented and some changes may not have any effect on compatibility, but Minecraft requires servers to send the vanilla datapack, which is more likely to be outdated or too new, but you can try patching BullshitCore for this or leave an [issue](https://github.com/MinersStudios/BullshitCore/issues).
+
 2. Open a port set in settings or, if none is set, the default one, 25565, for
 TCP connections.
 3. Check if the server is running and it is possible to connect by using a
