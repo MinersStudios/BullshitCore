@@ -8,11 +8,11 @@
 #include "nbt.h"
 
 #define CASE_GENERIC(identifier, T) \
-	case identifier: \
-	{ \
-		root_element = (TAG_Compound *)(((T *)((TAG_List *)root_element)->contents) + atoi(token) - 1); \
-		break; \
-	}
+case identifier: \
+{ \
+	root_element = (TAG_Compound *)(((T *)((TAG_List *)root_element)->contents) + atoi(token) - 1); \
+	break; \
+}
 
 enum ParserContext
 {
