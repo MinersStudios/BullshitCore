@@ -1,5 +1,7 @@
 # BullshitCore
 
+![Code size](https://img.shields.io/github/languages/code-size/MinersStudios/BullshitCore?style=flat-square)
+
 MinersStudios' own Minecraft server implementation.
 
 ## Building
