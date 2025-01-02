@@ -33,3 +33,6 @@
 // An integer in the range [5, 32] signifying the radius in chunks (16 by 16
 // blocks areas) for entities to get simulated around a player.
 #define SIMULATION_DISTANCE 5
+// The zlib implementation to use. 0 for "zlib", 1 for "zlib-ng". Currently,
+// does nothing.
+#define ZLIB_IMPLEMENTATION 0
