@@ -17,3 +17,6 @@
 #define NUMOF(array) (sizeof (array) / sizeof *(array))
 #define BYTES(bits) (((bits) + CHAR_BIT - 1) / CHAR_BIT)
 #define OCTETS(bytes) (((bytes) * CHAR_BIT + 7) / 8)
+#define BOUND_ADD(x, y, underflow, overflow) ((x) <= ((y) < 0 ? (underflow) : (overflow)) - (y) ? (x) + (y) : (x))
+#define BOUND_MULT(x, y, underflow, overflow) ((x) <= ((y) < 0 ? (underflow) : (overflow)) / (y) ? (x) * (y) : (x))
+#define BOUND_DEREF(x, i, lowerbound, upperbound) (x)[(i) >= (lowerbound) && (i) <= (upperbound) ? (i) : 0]
