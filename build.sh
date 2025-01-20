@@ -42,11 +42,12 @@ case $1 in
 		-Wjump-misses-init -Wlogical-op -I../include -I.. -O2 -flto \
 		-fno-fat-lto-objects -pthread -DNDEBUG ./*.c "$@"
 		gcc -std=c99 -fPIC -shared -O2 -flto -flto-partition=one -pthread \
-		./*.o -o "$lib.so" "$@" -lwolfssl
+		./*.o -o "$lib.so" "$@" -lwolfssl && strip --strip-unneeded "$lib.so"
 		gcc -std=c99 -Wall -Wextra -Wpedantic -Wformat=2 -Wshadow \
 		-Wwrite-strings -Wstrict-prototypes -Wold-style-definition \
 		-Wredundant-decls -Wnested-externs -Wmissing-include-dirs \
 		-Wjump-misses-init -Wlogical-op -I../include -I. -O2 -flto \
 		-flto-partition=one -fno-fat-lto-objects -fwhole-program -pthread \
-		-DNDEBUG ./*.o ../main.c -o "$app" "$@" -lwolfssl && strip "$app";;
+		-DNDEBUG ./*.o ../main.c -o "$app" "$@" -lwolfssl && strip \
+		--strip-unneeded "$app";;
 esac)
