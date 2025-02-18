@@ -26,8 +26,10 @@
 #include "version"
 #include "world.h"
 
-#define PERROR_AND_GOTO_DESTROY(s, object) { perror(s); goto destroy_ ## object; }
-#define THREAD_STACK_SIZE 8388608L
+#define ACTUAL_SIMULATION_DISTANCE (RENDER_DISTANCE <= SIMULATION_DISTANCE ? RENDER_DISTANCE : SIMULATION_DISTANCE)
+#define COMPOUND_LITERAL_WITH_SIZE(type, ...) (type){ __VA_ARGS__ }, sizeof(type)
+#define PACKET_MAXSIZE 2097151L
+#define PERROR_AND_GOTO_DESTROY(string, object) { perror(string); goto destroy_ ## object; }
 #define SEND(...) \
 { \
 	const uintptr_t args[] = { __VA_ARGS__ }; \
@@ -58,8 +60,7 @@
 		goto clear_stack_receiver; \
 	} \
 }
-#define PACKET_MAXSIZE 2097151L
-#define ACTUAL_SIMULATION_DISTANCE (RENDER_DISTANCE <= SIMULATION_DISTANCE ? RENDER_DISTANCE : SIMULATION_DISTANCE)
+#define THREAD_STACK_SIZE 8388608L
 
 struct ThreadArguments
 {
@@ -420,8 +421,8 @@ gather_client_information:
 							bullshitcore_network_varint_decode(packet_3_length_varint, &packet_3_length_varint_length);
 							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
-								(uintptr_t)&(const int32_t){ 0 }, sizeof(int32_t),
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const int32_t, 0),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, false),
 								(uintptr_t)dimension_count_varint, dimension_count_varint_length,
 								(uintptr_t)dimensions[0].length, dimension_1_length_length,
 								(uintptr_t)dimensions[0].contents, bullshitcore_network_varint_decode(dimensions[0].length, NULL),
@@ -432,25 +433,25 @@ gather_client_information:
 								(uintptr_t)max_players_varint, max_players_varint_length,
 								(uintptr_t)render_distance_varint, render_distance_varint_length,
 								(uintptr_t)simulation_distance_varint, simulation_distance_varint_length,
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
-								(uintptr_t)&(const Boolean){ true }, sizeof(Boolean),
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, false),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, true),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, false),
 								(uintptr_t)dimension_type_varint, dimension_type_varint_length,
 								(uintptr_t)dimensions[0].length, dimension_1_length_length,
 								(uintptr_t)dimensions[0].contents, bullshitcore_network_varint_decode(dimensions[0].length, NULL),
 								(uintptr_t)&seed_hash, sizeof seed_hash,
-								(uintptr_t)&(const uint8_t){ 3 }, sizeof(uint8_t),
-								(uintptr_t)&(const int8_t){ -1 }, sizeof(int8_t),
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const uint8_t, 3),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const int8_t, -1),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, false),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, false),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, false),
 								(uintptr_t)portal_cooldown_varint, portal_cooldown_varint_length,
 								(uintptr_t)sea_level_varint, sea_level_varint_length,
-								(uintptr_t)&(const Boolean){ false }, sizeof(Boolean),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const Boolean, false),
 								(uintptr_t)packet_2_length_varint, packet_2_length_varint_length,
 								(uintptr_t)packet_2_identifier_varint, packet_2_identifier_varint_length,
-								(uintptr_t)&(const uint8_t){ 13 }, sizeof(uint8_t),
-								(uintptr_t)&(const float){ 0 }, sizeof(float) >= 4 ? 4 : sizeof(float),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const uint8_t, 13),
+								(uintptr_t)&COMPOUND_LITERAL_WITH_SIZE(const float, 0) >= 4 ? 4 : sizeof(float),
 								(uintptr_t)packet_3_length_varint, packet_3_length_varint_length,
 								(uintptr_t)packet_3_identifier_varint, packet_3_identifier_varint_length,
 								(uintptr_t)channel_identifier.length, channel_identifier_length_varint_length,
@@ -847,7 +848,7 @@ packet_sender(void *thread_arguments)
 				size_t interthread_buffer_offset = packet_length_varint_length;
 				memcpy(interthread_buffer + interthread_buffer_offset, packet_identifier_varint, packet_identifier_varint_length);
 				interthread_buffer_offset += packet_identifier_varint_length;
-				memcpy(interthread_buffer + interthread_buffer_offset, &(const int64_t){ 0 }, sizeof(int64_t));
+				memcpy(interthread_buffer + interthread_buffer_offset, &COMPOUND_LITERAL_WITH_SIZE(const int64_t, 0));
 				*interthread_buffer_length = interthread_buffer_offset + sizeof(int64_t);
 			}
 			else if (unlikely(ret))
@@ -868,14 +869,14 @@ skip_send:
 	}
 	return NULL;
 clear_stack_sender:;
-	const int my_errno = errno;
+	const int errno_copy = errno;
 #ifndef NDEBUG
-	bullshitcore_log_error_formatted("Sender thread crashed! %s\n", strerror(my_errno));
+	bullshitcore_log_error_formatted("Sender thread crashed! %s\n", strerror(errno_copy));
 #endif
-	int * const p_my_errno = bullshitcore_memory_retrieve(sizeof my_errno);
-	if (unlikely(!p_my_errno)) return (void *)1;
-	*p_my_errno = my_errno;
-	return p_my_errno;
+	int * const p_errno_copy = bullshitcore_memory_retrieve(sizeof errno_copy);
+	if (unlikely(!p_errno_copy)) return (void *)1;
+	*p_errno_copy = errno_copy;
+	return p_errno_copy;
 }
 
 int
@@ -902,7 +903,7 @@ main(void)
 #endif
 		if (unlikely(server_endpoint == -1))
 			PERROR_AND_GOTO_DESTROY("socket", thread_attributes)
-		if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &(const int){ 1 }, sizeof(int)) == -1))
+		if (unlikely(setsockopt(server_endpoint, IPPROTO_TCP, TCP_NODELAY, &COMPOUND_LITERAL_WITH_SIZE(const int, 1)) == -1))
 			PERROR_AND_GOTO_DESTROY("setsockopt", server_endpoint)
 		{
 #ifdef IPV6
@@ -921,9 +922,9 @@ main(void)
 				PERROR_AND_GOTO_DESTROY("inet_pton", server_endpoint)
 			struct sockaddr_storage server_address_data;
 #ifdef IPV6
-			memcpy(&server_address_data, &(const struct sockaddr_in6){ AF_INET6, htons(PORT), 0, address, 0 }, sizeof(struct sockaddr_in6));
+			memcpy(&server_address_data, &COMPOUND_LITERAL_WITH_SIZE(const struct sockaddr_in6, AF_INET6, htons(PORT), 0, address, 0));
 #else
-			memcpy(&server_address_data, &(const struct sockaddr_in){ AF_INET, htons(PORT), address }, sizeof(struct sockaddr_in));
+			memcpy(&server_address_data, &COMPOUND_LITERAL_WITH_SIZE(const struct sockaddr_in, AF_INET, htons(PORT), address));
 #endif
 			if (unlikely(bind(server_endpoint, (struct sockaddr *)&server_address_data, sizeof server_address_data) == -1))
 				PERROR_AND_GOTO_DESTROY("bind", server_endpoint)
