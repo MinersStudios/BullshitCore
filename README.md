@@ -24,8 +24,11 @@ Run the build script:
 ./build.sh [additional build arguments]
 ```
 
-Note: [GCC](https://gcc.gnu.org) is used by default, but you may use any
-compiler you want by editing [build.sh](build.sh) directly.
+The [GCC](https://gcc.gnu.org) is used by default, but the project is
+compiler-agnostic and you can use any compiler you want by editing
+[build.sh](build.sh) and using the appropriate compilation/linking options for
+the used compiler. To configure the project, use macros defined in the
+[config.h](config.h) during the compilation or by modifying the file directly.
 
 ### Dependencies
 
