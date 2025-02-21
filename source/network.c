@@ -1,8 +1,8 @@
 #define _XOPEN_SOURCE 500
 #include <stdlib.h>
 #include <string.h>
-#include "global_macros.h"
-#include "memory.h"
+#include "global-macros.h"
+#include "memory-pool.h"
 #include "network.h"
 
 VarInt *
@@ -10,7 +10,7 @@ bullshitcore_network_varint_encode(int32_t value)
 {
 	uint_fast8_t bytes = 1;
 	while ((uint32_t)value >> 7 * bytes && bytes < 5) ++bytes;
-	VarInt *varint = bullshitcore_memory_retrieve(bytes);
+	VarInt *varint = bullshitcore_memory_pool_retrieve(bytes);
 	if (unlikely(!varint)) return NULL;
 	memset(varint, 0, bytes);
 	for (size_t i = 0; i < bytes; ++i)
@@ -39,7 +39,7 @@ bullshitcore_network_varlong_encode(int64_t value)
 {
 	uint_fast8_t bytes = 1;
 	while ((uint64_t)value >> 7 * bytes && bytes < 10) ++bytes;
-	VarLong *varlong = bullshitcore_memory_retrieve(bytes);
+	VarLong *varlong = bullshitcore_memory_pool_retrieve(bytes);
 	if (unlikely(!varlong)) return NULL;
 	memset(varlong, 0, bytes);
 	for (size_t i = 0; i < bytes; ++i)
@@ -66,7 +66,7 @@ bullshitcore_network_varlong_decode(const VarLong * restrict varlong, uint8_t * 
 String
 bullshitcore_network_string_java_utf8_encode(UnicodeString codepoints)
 {
-	uint8_t *contents = bullshitcore_memory_retrieve(STRING_MAXSIZE);
+	uint8_t *contents = bullshitcore_memory_pool_retrieve(STRING_MAXSIZE);
 	if (unlikely(!contents)) return (String){ 0 };
 	uint32_t codepoint;
 	size_t characters = 0;

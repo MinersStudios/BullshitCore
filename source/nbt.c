@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <zlib.h>
-#include "global_macros.h"
-#include "memory.h"
+#include "global-macros.h"
+#include "memory-pool.h"
 #include "nbt.h"
 
 #define CASE_GENERIC(identifier, T) \
@@ -124,7 +124,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 					{
 						if (!compound_count)
 						{
-							bullshitcore_memory_leave(nbt, sizeof *nbt);
+							bullshitcore_memory_pool_leave(nbt, sizeof *nbt);
 							return NULL;
 						}
 						if (!--compound_count) return nbt;
@@ -156,7 +156,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 					}
 					case TAGType_Byte_Array:
 					{
-						nbt = bullshitcore_memory_retrieve(sizeof *nbt);
+						nbt = bullshitcore_memory_pool_retrieve(sizeof *nbt);
 						if (unlikely(!nbt)) return NULL;
 						nbt->type_identifier = TAGType_Byte_Array;
 						parser_context = ParserContext_Byte_Array_Name_Length_1;
@@ -164,7 +164,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 					}
 					case TAGType_String:
 					{
-						nbt = bullshitcore_memory_retrieve(sizeof *nbt);
+						nbt = bullshitcore_memory_pool_retrieve(sizeof *nbt);
 						if (unlikely(!nbt)) return NULL;
 						nbt->type_identifier = TAGType_String;
 						parser_context = ParserContext_String_Name_Length_1;
@@ -200,7 +200,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 			case ParserContext_Byte_Array_Name_Length_2:
 			{
 				nbt->tag_name.length |= byte & 0xFF;
-				nbt->tag_name.contents = bullshitcore_memory_retrieve(sizeof *nbt->tag_name.contents * nbt->tag_name.length);
+				nbt->tag_name.contents = bullshitcore_memory_pool_retrieve(sizeof *nbt->tag_name.contents * nbt->tag_name.length);
 				if (unlikely(!nbt->tag_name.contents)) return NULL;
 				counter = 0;
 				parser_context = ParserContext_Byte_Array_Name_Character;
@@ -214,7 +214,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 					++counter;
 					break;
 				}
-				nbt->contents = bullshitcore_memory_retrieve(sizeof(TAG_Byte_Array));
+				nbt->contents = bullshitcore_memory_pool_retrieve(sizeof(TAG_Byte_Array));
 				if (unlikely(!nbt->contents)) return NULL;
 			}
 			case ParserContext_Byte_Array_Length_1:
@@ -226,7 +226,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 			case ParserContext_Byte_Array_Length_2:
 			{
 				((TAG_Byte_Array *)nbt->contents)->length |= byte & 0xFF;
-				((TAG_Byte_Array *)nbt->contents)->contents = bullshitcore_memory_retrieve(sizeof(TAG_Byte) * ((TAG_Byte_Array *)nbt->contents)->length);
+				((TAG_Byte_Array *)nbt->contents)->contents = bullshitcore_memory_pool_retrieve(sizeof(TAG_Byte) * ((TAG_Byte_Array *)nbt->contents)->length);
 				if (unlikely(!((TAG_Byte_Array *)nbt->contents)->contents)) return NULL;
 				counter = 0;
 				parser_context = ParserContext_Byte_Array_Payload;
@@ -251,7 +251,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 			case ParserContext_String_Name_Length_2:
 			{
 				nbt->tag_name.length |= byte & 0xFF;
-				nbt->tag_name.contents = bullshitcore_memory_retrieve(sizeof *nbt->tag_name.contents * nbt->tag_name.length);
+				nbt->tag_name.contents = bullshitcore_memory_pool_retrieve(sizeof *nbt->tag_name.contents * nbt->tag_name.length);
 				if (unlikely(!nbt->tag_name.contents)) return NULL;
 				counter = 0;
 				parser_context = ParserContext_String_Name_Character;
@@ -265,7 +265,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 					++counter;
 					break;
 				}
-				nbt->contents = bullshitcore_memory_retrieve(sizeof(TAG_String));
+				nbt->contents = bullshitcore_memory_pool_retrieve(sizeof(TAG_String));
 				if (unlikely(!nbt->contents)) return NULL;
 			}
 			case ParserContext_String_Length_1:
@@ -277,7 +277,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 			case ParserContext_String_Length_2:
 			{
 				((TAG_String *)nbt->contents)->length |= byte & 0xFF;
-				((TAG_String *)nbt->contents)->contents = bullshitcore_memory_retrieve(sizeof(uint8_t) * ((TAG_String *)nbt->contents)->length);
+				((TAG_String *)nbt->contents)->contents = bullshitcore_memory_pool_retrieve(sizeof(uint8_t) * ((TAG_String *)nbt->contents)->length);
 				if (unlikely(!((TAG_String *)nbt->contents)->contents)) return NULL;
 				counter = 0;
 				parser_context = ParserContext_String_Payload;
@@ -315,7 +315,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 	}
 	if (unlikely(ferror(file)))
 	{
-		bullshitcore_memory_leave(nbt, sizeof *nbt);
+		bullshitcore_memory_pool_leave(nbt, sizeof *nbt);
 		return NULL;
 	}
 	return nbt;
@@ -324,7 +324,7 @@ bullshitcore_nbt_read(FILE * restrict file)
 void
 bullshitcore_nbt_free(NBT * restrict nbt)
 {
-	bullshitcore_memory_leave(nbt, sizeof *nbt);
+	bullshitcore_memory_pool_leave(nbt, sizeof *nbt);
 }
 
 void *
@@ -332,7 +332,7 @@ bullshitcore_nbt_search(const NBT * restrict nbt, const uint8_t * restrict query
 {
 	TAG_Compound *root_element = nbt;
 	const size_t query_size = strlen((const char *)query) + 1;
-	char *query_copy = bullshitcore_memory_retrieve(query_size);
+	char *query_copy = bullshitcore_memory_pool_retrieve(query_size);
 	memcpy(query_copy, query, query_size);
 	if (unlikely(!query_copy)) return NULL;
 	for (char *token = strtok(query_copy, ">"); token != NULL; token = strtok(NULL, ">"))
@@ -367,6 +367,6 @@ bullshitcore_nbt_search(const NBT * restrict nbt, const uint8_t * restrict query
 		}
 		else ++root_element;
 	}
-	bullshitcore_memory_leave(query_copy, query_size);
+	bullshitcore_memory_pool_leave(query_copy, query_size);
 	return root_element;
 }

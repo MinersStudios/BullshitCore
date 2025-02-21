@@ -10,7 +10,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <unistd.h>
-// DO NOT MOVE NEXT 3 (THREE) INCLUDE DIRECTIVES AFTER ANY OTHER WOLFSSL HEADER INCLUDE DIRECTIVE
+// DO NOT MOVE NEXT 3 (THREE) INCLUDE DIRECTIVES AFTER ANY OTHER WOLFSSL HEADER
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
 #include <wolfssl/ssl.h>
@@ -18,9 +18,9 @@
 #include <wolfssl/wolfcrypt/error-crypt.h>
 #include <wolfssl/wolfcrypt/hash.h>
 #include "config.h"
-#include "global_macros.h"
+#include "global-macros.h"
 #include "log.h"
-#include "memory.h"
+#include "memory-pool.h"
 #include "network.h"
 #include "registries.h"
 #include "version"
@@ -151,9 +151,9 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
 								(uintptr_t)packet_payload.length, packet_payload_length_length,
 								(uintptr_t)packet_payload.contents, text_length)
-							bullshitcore_memory_leave(packet_payload.length, packet_payload_length_length);
-							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
-							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_payload.length, packet_payload_length_length);
+							bullshitcore_memory_pool_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_pool_leave(packet_length_varint, packet_length_varint_length);
 							break;
 						}
 						case Packet_Status_Client_Ping_Request:
@@ -167,8 +167,8 @@ packet_receiver(void *thread_arguments)
 							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
 								(uintptr_t)buffer, 8)
-							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
-							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_pool_leave(packet_length_varint, packet_length_varint_length);
 							goto close_connection;
 							break;
 						}
@@ -201,9 +201,9 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)(buffer + buffer_offset), 16,
 								(uintptr_t)(buffer + buffer_offset - username_length_length - username_length), username_length_length + username_length,
 								(uintptr_t)properties_count_varint, properties_count_varint_length)
-							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
-							bullshitcore_memory_leave(properties_count_varint, properties_count_varint_length);
-							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_pool_leave(properties_count_varint, properties_count_varint_length);
+							bullshitcore_memory_pool_leave(packet_length_varint, packet_length_varint_length);
 							break;
 						}
 						case Packet_Login_Client_Encryption_Response:
@@ -251,12 +251,12 @@ packet_receiver(void *thread_arguments)
 								(uintptr_t)identifier.contents, strlen((const char *)identifier.contents),
 								(uintptr_t)version.length, version_length_varint_length,
 								(uintptr_t)version.contents, strlen((const char *)version.contents))
-							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
-							bullshitcore_memory_leave(known_packs_count_varint, known_packs_count_varint_length);
-							bullshitcore_memory_leave(namespace.length, namespace_length_varint_length);
-							bullshitcore_memory_leave(identifier.length, identifier_length_varint_length);
-							bullshitcore_memory_leave(version.length, version_length_varint_length);
-							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_pool_leave(known_packs_count_varint, known_packs_count_varint_length);
+							bullshitcore_memory_pool_leave(namespace.length, namespace_length_varint_length);
+							bullshitcore_memory_pool_leave(identifier.length, identifier_length_varint_length);
+							bullshitcore_memory_pool_leave(version.length, version_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_length_varint, packet_length_varint_length);
 							break;
 						}
 						case Packet_Login_Client_Cookie_Response:
@@ -458,24 +458,24 @@ gather_client_information:
 								(uintptr_t)channel_identifier.contents, bullshitcore_network_varint_decode(channel_identifier.length, NULL),
 								(uintptr_t)server_brand.length, server_brand_length_varint_length,
 								(uintptr_t)server_brand.contents, bullshitcore_network_varint_decode(server_brand.length, NULL))
-							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
-							bullshitcore_memory_leave(dimension_count_varint, dimension_count_varint_length);
-							bullshitcore_memory_leave(dimensions[0].length, dimension_1_length_length);
-							bullshitcore_memory_leave(dimensions[1].length, dimension_2_length_length);
-							bullshitcore_memory_leave(dimensions[2].length, dimension_3_length_length);
-							bullshitcore_memory_leave(max_players_varint, max_players_varint_length);
-							bullshitcore_memory_leave(render_distance_varint, render_distance_varint_length);
-							bullshitcore_memory_leave(simulation_distance_varint, simulation_distance_varint_length);
-							bullshitcore_memory_leave(dimension_type_varint, dimension_type_varint_length);
-							bullshitcore_memory_leave(portal_cooldown_varint, portal_cooldown_varint_length);
-							bullshitcore_memory_leave(sea_level_varint, sea_level_varint_length);
-							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
-							bullshitcore_memory_leave(packet_2_identifier_varint, packet_2_identifier_varint_length);
-							bullshitcore_memory_leave(packet_2_length_varint, packet_2_length_varint_length);
-							bullshitcore_memory_leave(packet_3_identifier_varint, packet_3_identifier_varint_length);
-							bullshitcore_memory_leave(channel_identifier.length, channel_identifier_length_varint_length);
-							bullshitcore_memory_leave(server_brand.length, server_brand_length_varint_length);
-							bullshitcore_memory_leave(packet_3_length_varint, packet_3_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_pool_leave(dimension_count_varint, dimension_count_varint_length);
+							bullshitcore_memory_pool_leave(dimensions[0].length, dimension_1_length_length);
+							bullshitcore_memory_pool_leave(dimensions[1].length, dimension_2_length_length);
+							bullshitcore_memory_pool_leave(dimensions[2].length, dimension_3_length_length);
+							bullshitcore_memory_pool_leave(max_players_varint, max_players_varint_length);
+							bullshitcore_memory_pool_leave(render_distance_varint, render_distance_varint_length);
+							bullshitcore_memory_pool_leave(simulation_distance_varint, simulation_distance_varint_length);
+							bullshitcore_memory_pool_leave(dimension_type_varint, dimension_type_varint_length);
+							bullshitcore_memory_pool_leave(portal_cooldown_varint, portal_cooldown_varint_length);
+							bullshitcore_memory_pool_leave(sea_level_varint, sea_level_varint_length);
+							bullshitcore_memory_pool_leave(packet_length_varint, packet_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_2_identifier_varint, packet_2_identifier_varint_length);
+							bullshitcore_memory_pool_leave(packet_2_length_varint, packet_2_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_3_identifier_varint, packet_3_identifier_varint_length);
+							bullshitcore_memory_pool_leave(channel_identifier.length, channel_identifier_length_varint_length);
+							bullshitcore_memory_pool_leave(server_brand.length, server_brand_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_3_length_varint, packet_3_length_varint_length);
 							break;
 						}
 						case Packet_Configuration_Client_Keep_Alive:
@@ -514,8 +514,8 @@ gather_client_information:
 								(uintptr_t)REGISTRY_12, sizeof REGISTRY_12,
 								(uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length)
-							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
-							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_pool_leave(packet_length_varint, packet_length_varint_length);
 							break;
 						}
 					}
@@ -670,8 +670,8 @@ gather_client_information:
 							SEND((uintptr_t)packet_length_varint, packet_length_varint_length,
 								(uintptr_t)packet_identifier_varint, packet_identifier_varint_length,
 								(uintptr_t)buffer, 8)
-							bullshitcore_memory_leave(packet_identifier_varint, packet_identifier_varint_length);
-							bullshitcore_memory_leave(packet_length_varint, packet_length_varint_length);
+							bullshitcore_memory_pool_leave(packet_identifier_varint, packet_identifier_varint_length);
+							bullshitcore_memory_pool_leave(packet_length_varint, packet_length_varint_length);
 							break;
 						}
 						case Packet_Play_Client_Place_Recipe:
@@ -793,7 +793,7 @@ clear_stack_receiver:;
 #ifndef NDEBUG
 	bullshitcore_log_error_formatted("Receiver thread crashed! %s\n", strerror(errno_copy));
 #endif
-	int * const p_errno_copy = bullshitcore_memory_retrieve(sizeof errno_copy);
+	int * const p_errno_copy = bullshitcore_memory_pool_retrieve(sizeof errno_copy);
 	if (unlikely(!p_errno_copy)) return (void *)1;
 	*p_errno_copy = errno_copy;
 	return p_errno_copy;
@@ -873,7 +873,7 @@ clear_stack_sender:;
 #ifndef NDEBUG
 	bullshitcore_log_error_formatted("Sender thread crashed! %s\n", strerror(errno_copy));
 #endif
-	int * const p_errno_copy = bullshitcore_memory_retrieve(sizeof errno_copy);
+	int * const p_errno_copy = bullshitcore_memory_pool_retrieve(sizeof errno_copy);
 	if (unlikely(!p_errno_copy)) return (void *)1;
 	*p_errno_copy = errno_copy;
 	return p_errno_copy;
@@ -951,16 +951,16 @@ main(void)
 							PERROR_AND_GOTO_DESTROY("inet_ntop", server_endpoint)
 						bullshitcore_log_log_formatted("A client (%s) has connected.\n", client_address_string);
 					}
-					struct ThreadArguments *thread_arguments = bullshitcore_memory_retrieve(sizeof *thread_arguments);
+					struct ThreadArguments *thread_arguments = bullshitcore_memory_pool_retrieve(sizeof *thread_arguments);
 					if (unlikely(!thread_arguments))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-					uint8_t *interthread_buffer = bullshitcore_memory_retrieve(sizeof *interthread_buffer * PACKET_MAXSIZE); // free me
+					uint8_t *interthread_buffer = bullshitcore_memory_pool_retrieve(sizeof *interthread_buffer * PACKET_MAXSIZE); // free me
 					if (unlikely(!interthread_buffer))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-					size_t *interthread_buffer_length = bullshitcore_memory_retrieve(sizeof *interthread_buffer_length); // free me
+					size_t *interthread_buffer_length = bullshitcore_memory_pool_retrieve(sizeof *interthread_buffer_length); // free me
 					if (unlikely(!interthread_buffer_length))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
-					pthread_mutex_t *interthread_buffer_mutex = bullshitcore_memory_retrieve(sizeof *interthread_buffer_mutex); // free me
+					pthread_mutex_t *interthread_buffer_mutex = bullshitcore_memory_pool_retrieve(sizeof *interthread_buffer_mutex); // free me
 					if (unlikely(!interthread_buffer_mutex))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					ret = pthread_mutex_init(interthread_buffer_mutex, NULL);
@@ -969,7 +969,7 @@ main(void)
 						errno = ret;
 						PERROR_AND_GOTO_DESTROY("pthread_mutex_init", client_endpoint)
 					}
-					pthread_cond_t *interthread_buffer_condition = bullshitcore_memory_retrieve(sizeof *interthread_buffer_condition); // free me
+					pthread_cond_t *interthread_buffer_condition = bullshitcore_memory_pool_retrieve(sizeof *interthread_buffer_condition); // free me
 					if (unlikely(!interthread_buffer_condition))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					ret = pthread_cond_init(interthread_buffer_condition, NULL);
@@ -978,12 +978,12 @@ main(void)
 						errno = ret;
 						PERROR_AND_GOTO_DESTROY("pthread_cond_init", client_endpoint)
 					}
-					sem_t *client_thread_arguments_semaphore = bullshitcore_memory_retrieve(sizeof *client_thread_arguments_semaphore);
+					sem_t *client_thread_arguments_semaphore = bullshitcore_memory_pool_retrieve(sizeof *client_thread_arguments_semaphore);
 					if (unlikely(!client_thread_arguments_semaphore))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					if (unlikely(sem_init(client_thread_arguments_semaphore, 0, 0) == -1))
 						PERROR_AND_GOTO_DESTROY("sem_init", client_endpoint)
-					enum Connection_State *connection_state = bullshitcore_memory_retrieve(sizeof *connection_state); // free me
+					enum Connection_State *connection_state = bullshitcore_memory_pool_retrieve(sizeof *connection_state); // free me
 					if (unlikely(!connection_state))
 						PERROR_AND_GOTO_DESTROY("malloc", client_endpoint)
 					*connection_state = Connection_State_Handshaking;
@@ -1018,8 +1018,8 @@ main(void)
 						PERROR_AND_GOTO_DESTROY("sem_wait", client_endpoint)
 					if (unlikely(sem_destroy(client_thread_arguments_semaphore) == -1))
 						PERROR_AND_GOTO_DESTROY("sem_destroy", client_endpoint)
-					bullshitcore_memory_leave(client_thread_arguments_semaphore, sizeof *client_thread_arguments_semaphore);
-					bullshitcore_memory_leave(thread_arguments, sizeof *thread_arguments);
+					bullshitcore_memory_pool_leave(client_thread_arguments_semaphore, sizeof *client_thread_arguments_semaphore);
+					bullshitcore_memory_pool_leave(thread_arguments, sizeof *thread_arguments);
 				}
 			}
 			if (unlikely(close(client_endpoint) == -1))
