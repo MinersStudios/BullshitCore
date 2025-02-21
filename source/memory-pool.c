@@ -1,16 +1,13 @@
-#ifdef BULLSHITCORE_ENABLE_MEMORY_POOLING
+#ifdef ENABLE_MEMORY_POOLING
 # include <errno.h>
 # include <pthread.h>
+# include "config.h"
 # include "global-macros.h"
 #endif
 #include <stdlib.h>
 #include "memory-pool.h"
 
-#ifdef BULLSHITCORE_ENABLE_MEMORY_POOLING
-# ifndef MEMORY_POOL_SIZE
-#  define MEMORY_POOL_SIZE 256
-# endif
-
+#ifdef ENABLE_MEMORY_POOLING
 static struct MemoryRegion
 {
 	void *data;
@@ -22,7 +19,7 @@ static pthread_mutex_t memory_pool_mutex = PTHREAD_MUTEX_INITIALIZER;
 void *
 bullshitcore_memory_pool_retrieve(size_t size)
 {
-#ifdef BULLSHITCORE_ENABLE_MEMORY_POOLING
+#ifdef ENABLE_MEMORY_POOLING
 	struct MemoryRegion region;
 	int ret = pthread_mutex_lock(&memory_pool_mutex);
 	if (unlikely(ret))
@@ -59,7 +56,7 @@ bullshitcore_memory_pool_retrieve(size_t size)
 void
 bullshitcore_memory_pool_leave(void * restrict region, size_t size)
 {
-#ifdef BULLSHITCORE_ENABLE_MEMORY_POOLING
+#ifdef ENABLE_MEMORY_POOLING
 	int ret = pthread_mutex_lock(&memory_pool_mutex);
 	if (unlikely(ret))
 	{
